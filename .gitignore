@@ -1,0 +1,25 @@
+# Environments & Virtual Envs
+venv/
+.venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Workspace runtime outputs
+workspace/
+
+# Environment files with API keys
+.env
+backend/.env
+
+# Node & Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-electron/
+frontend/release/
+
+# macOS / OS artifacts
+.DS_Store
+Thumbs.db
