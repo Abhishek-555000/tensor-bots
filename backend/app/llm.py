@@ -23,7 +23,6 @@ from app.config import (
 )
 from app.events import emit
 
-
 def _retryable_model_error(exc: Exception) -> bool:
     """Return True for quota, throttle, access, or missing-model errors that are safe to retry on another backend."""
     if exc is None:
@@ -159,7 +158,6 @@ def invoke_with_retry(model: Any, prompt: Any, agent_name: str = "agent", max_re
     last_err = None
     tried_models: set[str] = set()
     fallback_names = _fallback_models_for(getattr(model, "model_name", None) or getattr(model, "model", None))
-
     for attempt in range(max_retries + 1):
         try:
             return model.invoke(prompt)

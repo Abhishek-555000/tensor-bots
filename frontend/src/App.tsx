@@ -92,9 +92,17 @@ export const App: React.FC = () => {
       <Header onTriggerReplay={handleTriggerReplay} />
 
       {/* Error notification banner if run_error */}
-      {errorMessage && runState === 'error' && (
-        <div className="fixed top-14 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl bg-red-950/80 border border-error/40 text-error text-xs font-mono backdrop-blur-md z-30 shadow-lg">
-          Error: {errorMessage}
+      {errorMessage && (
+        <div className="fixed top-14 left-1/2 -translate-x-1/2 max-w-lg px-4 py-2.5 rounded-xl bg-red-950/90 border border-red-500/40 text-red-300 text-xs font-mono backdrop-blur-md z-40 shadow-xl flex items-start justify-between gap-3">
+          <span className="line-clamp-2 leading-relaxed">
+            {errorMessage.length > 200 ? `${errorMessage.slice(0, 200)}...` : errorMessage}
+          </span>
+          <button
+            onClick={() => useRunStore.setState({ errorMessage: null })}
+            className="text-red-400 hover:text-white p-0.5 rounded transition-colors text-xs"
+          >
+            ✕
+          </button>
         </div>
       )}
 
