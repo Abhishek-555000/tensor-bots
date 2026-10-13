@@ -1,13 +1,3 @@
-"""
-LangGraph Idea: Configuration & Runtime Parameters
---------------------------------------------------
-LangGraph applications rely on clean separation between graph architecture and
-runtime configuration (model names, API keys, recursion limits, and timeouts).
-This module centralizes environment variables and workspace paths so the graph
-can be retargeted to different models or mock mode without altering graph code.
-# TEACH: Notice how model choice and mock flags are externalized to .env.
-"""
-
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -16,29 +6,58 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 
-# Load environment variables
-load_dotenv(dotenv_path=BASE_DIR / ".env")
-load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
+# Load environment variables: root .env takes precedence for user secrets
+load_dotenv(dotenv_path=PROJECT_ROOT / ".env", override=True)
+load_dotenv(dotenv_path=BASE_DIR / ".env", override=False)
 
-# LLM Provider Selection: 'gemini', 'groq', or 'openai'
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower().strip()
+
+def _clean_key(val: str | None) -> str:
+    """Filter out boilerplate placeholder strings from template .env files."""
+    if not val:
+        return ""
+    v = val.strip()
+    if v.startswith("your_") or "api_key_here" in v:
+        return ""
+    return v
+
 
 # Gemini API configuration
-# Accepts either GOOGLE_API_KEY or GEMINI_API_KEY for maximum flexibility
-GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
+GOOGLE_API_KEY = _clean_key(os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"))
 GEMINI_API_KEY = GOOGLE_API_KEY
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-
-# OpenAI-compatible configuration
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
-OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
 
 # Groq Cloud configuration
-GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_API_KEY = _clean_key(os.getenv("GROQ_API_KEY"))
+raw_groq_model = os.getenv("GROQ_MODEL", "").strip()
+# Use openai/gpt-oss-120b by default for high token limits, tool calling & complete generation
+if not raw_groq_model or raw_groq_model in ("llama-3.3-70b-versatile", "qwen/qwen3.8-27b"):
+    GROQ_MODEL = "openai/gpt-oss-120b"
+else:
+    GROQ_MODEL = raw_groq_model
+
+# LLM Provider Selection: automatically route to provider with active key
+env_provider = os.getenv("LLM_PROVIDER", "").lower().strip()
+if env_provider == "groq" and GROQ_API_KEY:
+    LLM_PROVIDER = "groq"
+elif env_provider == "gemini" and GOOGLE_API_KEY:
+    LLM_PROVIDER = "gemini"
+elif GROQ_API_KEY:
+    LLM_PROVIDER = "groq"
+elif GOOGLE_API_KEY:
+    LLM_PROVIDER = "gemini"
+else:
+    LLM_PROVIDER = "gemini"
 
 # Safety net: Mock mode for offline demonstrations without API keys or internet
-MOCK_LLM = os.getenv("MOCK_LLM", "0").lower().strip() in ("1", "true", "yes")
+raw_mock = os.getenv("MOCK_LLM", "").lower().strip()
+if raw_mock in ("1", "true", "yes"):
+    MOCK_LLM = True
+elif raw_mock in ("0", "false", "no"):
+    MOCK_LLM = False
+else:
+    # If no valid keys exist, automatically engage mock mode
+    has_valid_key = bool(GOOGLE_API_KEY or GROQ_API_KEY)
+    MOCK_LLM = not has_valid_key
 
 # Loop guardrails: review rounds cap
 _raw_rounds = os.getenv("MAX_REVIEW_ROUNDS") or os.getenv("MAX_REVISION_ROUNDS") or "2"

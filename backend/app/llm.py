@@ -1,14 +1,5 @@
-"""
-LangGraph Idea: Pluggable Model Providers & Offline Mocking
------------------------------------------------------------
-LangGraph decouples node logic from specific foundation model vendors.
-This module creates standard ChatModel instances (Google Gemini or Groq)
-and supplies a Mock mode fallback so tests, workshops, and UI demos run
-flawlessly offline without API keys or internet connection.
-# TEACH: Agents only interact with standard BaseChatModel interfaces.
-"""
-
 import time
+import logging
 from typing import Any, List, Optional
 from app.config import (
     LLM_PROVIDER,
@@ -16,75 +7,15 @@ from app.config import (
     GEMINI_MODEL,
     GROQ_API_KEY,
     GROQ_MODEL,
-    OPENAI_API_KEY,
-    OPENAI_MODEL,
     MOCK_LLM,
     REQUEST_TIMEOUT_SECONDS,
 )
 from app.events import emit
 
-def _retryable_model_error(exc: Exception) -> bool:
-    """Return True for quota, throttle, access, or missing-model errors that are safe to retry on another backend."""
-    if exc is None:
-        return False
-    err_str = str(exc).lower()
-    return any(
-        token in err_str
-        for token in (
-            "429",
-            "rate limit",
-            "rate_limit",
-            "quota",
-            "resource_exhausted",
-            "too many requests",
-            "daily quota",
-            "exceeded",
-            "timeout",
-            "model not found",
-            "does not exist",
-            "not available",
-            "access denied",
-            "not found",
-            "invalid model",
-            "decommissioned",
-            "deprecated",
-            "unsupported",
-        )
-    )
-
-
-def _fallback_models_for(model_name: Optional[str]) -> list[str]:
-    """Return provider-aligned backups for transient quota exhaustion or unavailable models."""
-    base_model = (model_name or "").strip()
-    if LLM_PROVIDER == "groq":
-        pool = [
-            "llama-3.1-8b-instant",
-            "llama-3.3-70b-versatile",
-        ]
-    elif LLM_PROVIDER == "openai":
-        pool = [
-            "gpt-4o-mini",
-            "gpt-4.1-mini",
-            "openai/gpt-oss-20b",
-        ]
-    else:
-        pool = [
-            "gemini-2.5-flash",
-            "gemini-2.0-flash",
-            "gemini-1.5-flash",
-        ]
-    if base_model:
-        pool = [item for item in pool if item != base_model]
-    return list(dict.fromkeys(pool))
-
-
-def _bind_model_for_target(model: Any, target_llm: Any) -> Any:
-    """Retarget a model to a different LLM instance while preserving tool/schema settings."""
-    if hasattr(model, "schema"):
-        return target_llm.with_structured_output(getattr(model, "schema"))
-    if hasattr(model, "tools"):
-        return target_llm.bind_tools(getattr(model, "tools"))
-    return target_llm
+# Cascade of resilient models with independent quota pools
+GEMINI_FALLBACK_POOL = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.7-flash"]
+GROQ_FALLBACK_POOL = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+logger = logging.getLogger(__name__)
 
 
 def extract_text(content: Any) -> str:
@@ -118,76 +49,151 @@ def get_llm(model_name: Optional[str] = None):
 
     if LLM_PROVIDER == "groq" and GROQ_API_KEY:
         from langchain_groq import ChatGroq
+        target_model = model_name or GROQ_MODEL
         return ChatGroq(
-            model=model_name or GROQ_MODEL,
+            model=target_model,
             api_key=GROQ_API_KEY,
             temperature=0.2,
+            max_tokens=4096,
             request_timeout=REQUEST_TIMEOUT_SECONDS,
         )
 
-    if LLM_PROVIDER == "openai" and OPENAI_API_KEY:
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
-            model=model_name or OPENAI_MODEL,
-            api_key=OPENAI_API_KEY,
-            temperature=0.2,
-            timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-
     # Default provider: Google Gemini
-    if not GOOGLE_API_KEY:
-        raise RuntimeError(
-            "No API key configured for Gemini. Set GOOGLE_API_KEY or GEMINI_API_KEY, or enable MOCK_LLM=1."
-        )
     from langchain_google_genai import ChatGoogleGenerativeAI
     target_model = model_name or GEMINI_MODEL
     return ChatGoogleGenerativeAI(
         model=target_model,
         google_api_key=GOOGLE_API_KEY,
         temperature=0.2,
+        max_output_tokens=4096,
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
 
 
-def invoke_with_retry(model: Any, prompt: Any, agent_name: str = "agent", max_retries: int = 3) -> Any:
+def get_structured_llm(schema: Any, model_name: Optional[str] = None):
     """
-    Invoke a model with light retry logic and safe fallback between provider-aligned models.
-    When quota or rate limiting is detected, transparently try a different supported model
-    before surfacing the error to the graph.
+    Factory creating a structured-output ChatModel.
+    On Groq, explicitly uses method='json_schema' to avoid 'tool choice is required' errors.
     """
-    last_err = None
-    tried_models: set[str] = set()
-    fallback_names = _fallback_models_for(getattr(model, "model_name", None) or getattr(model, "model", None))
+    if MOCK_LLM:
+        return None
+    llm = get_llm(model_name=model_name)
+    if LLM_PROVIDER == "groq":
+        return llm.with_structured_output(schema, method="json_schema")
+    return llm.with_structured_output(schema)
+
+
+def invoke_with_retry(
+    model: Any,
+    prompt: Any,
+    agent_name: str = "agent",
+    schema: Optional[Any] = None,
+    max_retries: int = 2,
+    tools: Optional[list[Any]] = None,
+) -> Any:
+    """
+    Invokes an LLM model with automatic retry and intelligent fallback across the model pool
+    if a model's quota is exhausted, rate limited, or unavailable.
+    """
+    last_err: Exception | None = None
+    fallback_pool = GROQ_FALLBACK_POOL if LLM_PROVIDER == "groq" else GEMINI_FALLBACK_POOL
+    primary_model = GROQ_MODEL if LLM_PROVIDER == "groq" else GEMINI_MODEL
+    fallback_attempted = False
+    
+    # Try with primary model
     for attempt in range(max_retries + 1):
         try:
             return model.invoke(prompt)
         except Exception as exc:
             last_err = exc
-            if not _retryable_model_error(exc):
-                if attempt == max_retries:
-                    raise
-                continue
+            err_str = str(exc).lower()
 
-            emit("agent_status", agent=agent_name, text="Model unavailable; trying backup model...")
-            for alt_model_name in fallback_names:
-                if alt_model_name in tried_models:
-                    continue
-                tried_models.add(alt_model_name)
-                try:
-                    alt_llm = get_llm(model_name=alt_model_name)
-                    alt_model = _bind_model_for_target(model, alt_llm)
-                    emit("agent_status", agent=agent_name, text=f"Trying fallback model: {alt_model_name}")
-                    return alt_model.invoke(prompt)
-                except Exception as alt_exc:
-                    last_err = alt_exc
-                    if not _retryable_model_error(alt_exc):
-                        raise
-                    emit("agent_status", agent=agent_name, text=f"Fallback model {alt_model_name} unavailable; trying next option...")
+            # Quota exhausted, rate limited, or model error: cascade through fallback pool
+            if not fallback_attempted and any(
+                k in err_str
+                for k in (
+                    "resource_exhausted",
+                    "quota",
+                    "429",
+                    "model_not_found",
+                    "not exist",
+                    "tool_use_failed",
+                    "tool choice is required",
+                    "tool_choice",
+                    "timeout",
+                    "timed out",
+                    "connection",
+                    "service unavailable",
+                    "internal server error",
+                    "502",
+                    "503",
+                    "504",
+                )
+            ):
+                fallback_attempted = True
+                seen_models = {primary_model}
+                for alt_model in fallback_pool:
+                    if alt_model in seen_models:
+                        continue
+                    seen_models.add(alt_model)
+                    try:
+                        emit("agent_status", agent=agent_name, text=f"Trying {alt_model}...")
+                        if schema is not None:
+                            alt_target = get_structured_llm(schema, model_name=alt_model)
+                            return alt_target.invoke(prompt)
+                        else:
+                            alt_llm = get_llm(model_name=alt_model)
+                            if tools is not None:
+                                alt_llm = alt_llm.bind_tools(tools)
+                            return alt_llm.invoke(prompt)
+                    except Exception as alt_exc:
+                        last_err = alt_exc
+                        logger.warning(
+                            "Fallback model %s failed for %s (%s)",
+                            alt_model,
+                            agent_name,
+                            type(alt_exc).__name__,
+                        )
 
-            if attempt < max_retries:
+                if schema is not None:
+                    try:
+                        raw_llm = get_llm()
+                        json_prompt = f"{prompt}\n\nOutput STRICT JSON matching schema without any markdown or tool calls."
+                        res = raw_llm.invoke(json_prompt)
+                        raw_txt = extract_text(res.content)
+                        import json, re
+                        m = re.search(r"(\{.*\})", raw_txt, re.DOTALL)
+                        if m:
+                            return schema.model_validate(json.loads(m.group(1)))
+                    except Exception as raw_exc:
+                        last_err = raw_exc
+                        logger.warning(
+                            "Structured-output fallback failed for %s: %s",
+                            agent_name,
+                            raw_exc,
+                        )
+                raise last_err
+
+            if attempt < max_retries and any(k in err_str for k in ("429", "rate limit", "quota", "timeout")):
+                emit("agent_status", agent=agent_name, text="Rate limited, retrying...")
                 time.sleep(2.0 * (attempt + 1))
-                continue
-
-            raise RuntimeError(
-                f"LLM provider exhausted for {agent_name}; all backup models are unavailable or quota-blocked."
-            ) from last_err
+            else:
+                if attempt == max_retries:
+                    # Final safety net for structured schemas: raw JSON extraction
+                    if schema is not None:
+                        try:
+                            raw_llm = get_llm()
+                            json_prompt = f"{prompt}\n\nOutput STRICT JSON matching schema without any markdown or tool calls."
+                            res = raw_llm.invoke(json_prompt)
+                            raw_txt = extract_text(res.content)
+                            import json, re
+                            m = re.search(r"(\{.*\})", raw_txt, re.DOTALL)
+                            if m:
+                                return schema.model_validate(json.loads(m.group(1)))
+                        except Exception as raw_exc:
+                            logger.warning(
+                                "Structured-output fallback failed for %s: %s",
+                                agent_name,
+                                raw_exc,
+                            )
+                    raise last_err

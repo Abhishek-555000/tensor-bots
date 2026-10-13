@@ -8,6 +8,7 @@ __pycache__/
 
 # Workspace runtime outputs
 workspace/
+backend/.cache/
 
 # Environment files with API keys
 .env

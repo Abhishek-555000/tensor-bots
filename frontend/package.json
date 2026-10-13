@@ -5,7 +5,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
-    "dev:electron": "concurrently -k --names \"vite,electron\" --prefix-colors \"cyan,magenta\" \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "dev:electron": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

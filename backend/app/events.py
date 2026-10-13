@@ -1,12 +1,3 @@
-"""
-LangGraph Idea: Streaming Observability (Custom Events)
--------------------------------------------------------
-LangGraph provides a StreamWriter via `get_stream_writer()`, allowing nodes to emit
-custom telemetry events (status pills, particle handoffs, file writes) out-of-band
-without bloating or polluting the persistent graph state.
-# TEACH: `get_stream_writer()` bridges the internal graph execution to SSE and UI.
-"""
-
 import time
 import functools
 from typing import Any, Callable, Dict, Optional

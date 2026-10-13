@@ -1,13 +1,3 @@
-"""
-Stage 0: Hello Graph (LangGraph Sanity Check)
----------------------------------------------
-This script verifies your Python environment, LangGraph installation, and
-Gemini API key with the simplest possible 1-node StateGraph.
-# TEACH: Creating a StateGraph, adding 1 node, connecting START and END, and compiling.
-Run with:
-    python hello_graph.py
-"""
-
 import os
 import sys
 from pathlib import Path

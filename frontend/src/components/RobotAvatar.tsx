@@ -70,8 +70,8 @@ export const RobotAvatar: React.FC<RobotAvatarProps> = ({
   return (
     <div
       onClick={onClick}
-      className="group relative flex flex-col items-center cursor-pointer select-none"
-      style={{ width: 140 }}
+      className="group relative flex flex-col items-center cursor-pointer select-none active:scale-95 transition-transform"
+      style={{ width: 'clamp(112px, 14vw, 140px)' }}
     >
       {/* Isometric Diamond Platform Base */}
       <div className="relative w-28 h-16 flex items-center justify-center">

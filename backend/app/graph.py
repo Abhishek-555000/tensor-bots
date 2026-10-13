@@ -1,16 +1,3 @@
-"""
-LangGraph Idea: Graph Topology, Fan-Out, Join & Cycles
-------------------------------------------------------
-This file defines the complete StateGraph wiring:
-1. Entry point: `START -> manager`
-2. Fan-out: `manager -> researcher` and `manager -> planner` in parallel
-3. Join: `researcher -> developer` and `planner -> developer` (waits for both!)
-4. Sequential: `developer -> reviewer`
-5. Conditional routing: `reviewer -> developer` (re-try loop) OR `reviewer -> manager_final` (exit)
-6. Termination: `manager_final -> END`
-# TEACH: In LangGraph, adding edges from multiple nodes to one creates an automatic join barrier!
-"""
-
 from langgraph.graph import StateGraph, START, END
 from app.config import MAX_REVIEW_ROUNDS
 from app.state import TensorState
@@ -25,13 +12,15 @@ def route_review(state: TensorState) -> str:
     """
     Conditional routing function for the reviewer's verdict.
     
-    # TEACH: If approved or review rounds hit the cap, proceed to manager_final.
+    # Stop after approval, review exhaustion, or an unavailable review provider.
     # Otherwise, loop back to developer for another revision round.
     """
     review = state.get("review", {})
     iteration = state.get("iteration", 1)
     
     is_approved = review.get("approved", False)
+    if review.get("verification_unavailable"):
+        return "manager_final"
     if is_approved or iteration >= MAX_REVIEW_ROUNDS:
         return "manager_final"
     return "developer"

@@ -7,15 +7,15 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#07040F',
-        surface: '#120A24',
-        'surface-elevated': '#1A0F33',
-        'border-subtle': 'rgba(167, 139, 250, 0.18)',
-        'border-glow': 'rgba(167, 139, 250, 0.35)',
+        background: '#0B0D12',
+        surface: '#11151D',
+        'surface-elevated': '#191E29',
+        'border-subtle': 'rgba(148, 163, 184, 0.16)',
+        'border-glow': 'rgba(167, 139, 250, 0.28)',
         primary: {
           light: '#C4B5FD',
-          DEFAULT: '#A78BFA',
-          deep: '#7C3AED',
+          DEFAULT: '#9A83ED',
+          deep: '#7056CC',
         },
         accent: {
           pink: '#F472B6',
@@ -23,9 +23,9 @@ export default {
           emerald: '#34D399',
         },
         text: {
-          DEFAULT: '#E4E0F0',
-          muted: '#8B84A3',
-          faint: '#5C5474',
+          DEFAULT: '#EEF0F6',
+          muted: '#9AA2B2',
+          faint: '#697386',
         },
         error: '#F87171',
       },
@@ -38,9 +38,9 @@ export default {
         'pill': '9999px',
       },
       boxShadow: {
-        'violet-glow': '0 0 25px rgba(124, 58, 237, 0.25)',
+        'violet-glow': '0 0 25px rgba(124, 58, 237, 0.18)',
         'pink-glow': '0 0 25px rgba(244, 114, 182, 0.25)',
-        'subtle-panel': '0 12px 36px rgba(0, 0, 0, 0.65)',
+        'subtle-panel': '0 12px 36px rgba(0, 0, 0, 0.4)',
       },
     },
   },

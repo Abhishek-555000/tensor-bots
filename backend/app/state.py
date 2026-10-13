@@ -1,13 +1,3 @@
-"""
-LangGraph Idea: Graph State (Channels & Schemas)
-------------------------------------------------
-In LangGraph, 'State' is the single source of truth passed across all nodes in
-the graph. Nodes read from this dictionary and return partial updates to merge.
-Because parallel branches ('researcher' and 'planner') write to distinct keys
-('research' and 'plan'), no conflict reducers are required!
-# TEACH: TypedDict defines the shape; Pydantic models validate structured outputs.
-"""
-
 from typing import TypedDict, Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 

@@ -1,12 +1,3 @@
-"""
-LangGraph Idea: Sandboxed Tools & Scoped Closures
--------------------------------------------------
-LangGraph agents interact with the outside world through tools. Here, `make_file_tools`
-uses Python closures to bind file operations strictly to a per-run workspace directory
-(`workspace/<run_id>/`). This guarantees safe sandboxing without global path state.
-# TEACH: Notice how `make_file_tools(root)` captures `root` in the tool functions.
-"""
-
 from pathlib import Path
 from typing import List
 from langchain_core.tools import tool

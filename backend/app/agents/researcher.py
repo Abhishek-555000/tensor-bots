@@ -1,13 +1,5 @@
-"""
-LangGraph Idea: Parallel Worker Node (Researcher)
--------------------------------------------------
-In LangGraph fan-out topologies, independent nodes can execute concurrently.
-The Researcher reads its assigned brief from state, performs focused technical
-investigation, and writes exclusively to the `research` key.
-# TEACH: Notice how this node does not conflict with the concurrent Planner node.
-"""
-
 import time
+import logging
 from app.config import MOCK_LLM
 from app.events import emit, agent_node
 from app.state import TensorState
@@ -21,6 +13,7 @@ Given a user request and a brief from the Project Manager, output a concise tech
 4. Recommended Implementation Strategy
 
 Keep your response under 250 words. Do not write full code implementation here (the Developer will write code)."""
+logger = logging.getLogger(__name__)
 
 
 @agent_node("researcher")
@@ -42,14 +35,32 @@ def researcher_node(state: TensorState) -> dict:
 - **Constraints & Risks:** Ensure high contrast, accessible controls, clean timer intervals, and responsive viewport sizing.
 """
     else:
-        llm = get_llm()
-        prompt_text = (
-            f"{RESEARCHER_SYSTEM_PROMPT}\n\n"
-            f"User Request: {user_prompt}\n"
-            f"Manager Brief: {brief}"
-        )
-        res = invoke_with_retry(llm, prompt_text, agent_name="researcher")
-        research_md = extract_text(res.content)
+        try:
+            llm = get_llm()
+            prompt_text = (
+                f"{RESEARCHER_SYSTEM_PROMPT}\n\n"
+                f"User Request: {user_prompt}\n"
+                f"Manager Brief: {brief}"
+            )
+            res = invoke_with_retry(llm, prompt_text, agent_name="researcher")
+            research_md = extract_text(res.content)
+        except Exception as exc:
+            logger.warning(
+                "Researcher model failed (%s); continuing with baseline guidance",
+                type(exc).__name__,
+            )
+            emit("agent_status", agent="researcher", text="Using baseline technical guidance")
+            research_md = (
+                f"### Technical Research & Architecture Notes\n\n"
+                f"- **Target Goal:** {user_prompt}\n"
+                "- **Stack:** Standalone HTML, CSS, and JavaScript; avoid unnecessary dependencies.\n"
+                "- **Implementation:** Keep state and interactions explicit, use semantic controls, "
+                "and make the layout responsive.\n"
+                "- **Verification:** Check the requested workflows, empty and invalid input, keyboard "
+                "access, and linked assets.\n"
+                f"- **Provider note:** Research generation was unavailable ({type(exc).__name__}); "
+                "the implementation will continue using this baseline."
+            )
     
     emit("agent_output", agent="researcher", text=research_md)
     emit("handoff", **{"from": "researcher", "to": "developer", "label": "Findings"})

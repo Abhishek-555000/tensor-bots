@@ -1,20 +1,9 @@
-"""
-LangGraph Idea: Structured Output & Dispatching (Manager Node)
---------------------------------------------------------------
-The Project Manager demonstrates two essential LangGraph concepts:
-1. Structured Outputs: Using `with_structured_output(AgentBriefs)` to constrain
-   the LLM into generating typed, validated task specifications for teammates.
-2. Dual Lifecycle Nodes: The manager node acts as both the entry dispatcher
-   (`manager_plan`) and the final synthesizer (`manager_final`), sharing the same
-   identity in telemetry and UI.
-# TEACH: Notice how `with_structured_output` guarantees typed downstream inputs.
-"""
-
 import time
+import logging
 from app.config import MOCK_LLM
 from app.events import emit, agent_node
 from app.state import TensorState, AgentBriefs
-from app.llm import get_llm, invoke_with_retry, extract_text
+from app.llm import get_llm, get_structured_llm, invoke_with_retry, extract_text
 
 MANAGER_SYSTEM_PROMPT = """You are the Project Manager of an elite engineering crew.
 Your goal is to break down the user request into 4 concise, targeted briefs for your teammates:
@@ -28,6 +17,7 @@ Keep all briefs direct, professional, and practical."""
 FINAL_SUMMARY_SYSTEM_PROMPT = """You are the Project Manager wrapping up the completed project.
 Write a clear, inspiring 3-5 line summary of what was built, followed by a bulleted list of created files.
 Keep it succinct, user-friendly, and polished."""
+logger = logging.getLogger(__name__)
 
 
 @agent_node("manager")
@@ -50,10 +40,18 @@ def manager_plan(state: TensorState) -> dict:
             reviewer=f"Verify all planned files exist, buttons respond correctly, styling renders properly, and no placeholders remain."
         )
     else:
-        llm = get_llm()
-        structured_llm = llm.with_structured_output(AgentBriefs)
-        prompt_text = f"{MANAGER_SYSTEM_PROMPT}\n\nUser Request: {user_prompt}"
-        briefs = invoke_with_retry(structured_llm, prompt_text, agent_name="manager")
+        try:
+            structured_llm = get_structured_llm(AgentBriefs)
+            prompt_text = f"{MANAGER_SYSTEM_PROMPT}\n\nUser Request: {user_prompt}"
+            briefs = invoke_with_retry(structured_llm, prompt_text, agent_name="manager", schema=AgentBriefs)
+        except Exception as exc:
+            logger.warning("Project brief generation failed (%s); using baseline briefs", type(exc).__name__)
+            briefs = AgentBriefs(
+                researcher=f"Investigate core UI patterns, responsive layout, and clean styling for: '{user_prompt}'. Keep stack to vanilla HTML/JS/CSS.",
+                planner=f"Plan a clean modular structure of at most 3 files (index.html, styles.css, app.js) with modern aesthetic and smooth interactions.",
+                developer=f"Implement fully functional, self-contained code for: '{user_prompt}'. Ensure responsive layout and complete interactive logic.",
+                reviewer=f"Verify all planned files exist, buttons and controls respond correctly, styling renders properly, and all tags are closed."
+            )
     
     briefs_dict = briefs.model_dump()
     
@@ -103,8 +101,21 @@ def manager_final(state: TensorState) -> dict:
             f"Reviewer Verdict: {review.get('summary', 'Approved')}\n"
             f"Files Created:\n{files_list_str}\n"
         )
-        res = invoke_with_retry(llm, prompt_text, agent_name="manager")
-        summary = extract_text(res.content)
+        try:
+            res = invoke_with_retry(llm, prompt_text, agent_name="manager")
+            summary = extract_text(res.content)
+        except Exception as exc:
+            logger.warning(
+                "Final summary generation failed (%s); completing with baseline summary",
+                type(exc).__name__,
+            )
+            emit("agent_status", agent="manager", text="Using baseline delivery summary")
+            summary = (
+                f"Completed the project for: '{user_prompt}'.\n"
+                f"Reviewer status: {review.get('summary', 'Review completed')}.\n\n"
+                f"**Deliverables:**\n{files_list_str}\n\n"
+                f"Note: AI summary generation was unavailable ({type(exc).__name__})."
+            )
     
     emit("agent_output", agent="manager", text=summary)
     emit("run_finished", summary=summary, files=files)

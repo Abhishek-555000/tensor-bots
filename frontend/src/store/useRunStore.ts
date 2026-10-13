@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AgentId, AgentInfo, Particle, RunEvent, FileItem } from '../types';
+import { AgentId, AgentInfo, Particle, RunEvent, FileItem, RunnerTab } from '../types';
 
 const INITIAL_AGENTS: Record<AgentId, AgentInfo> = {
   manager: {
@@ -74,12 +74,21 @@ interface RunStore {
   isReplay: boolean;
   backendHealthy: boolean;
 
+  runnerModalOpen: boolean;
+  runnerModalTab: RunnerTab;
+  runnerModalFile: string | null;
+  finishCardDismissed: boolean;
+
   setPrompt: (prompt: string) => void;
   setActiveAgentModal: (agentId: AgentId | null) => void;
   setSelectedFile: (file: FileItem | null) => void;
   setBackendHealthy: (healthy: boolean) => void;
   setIsMock: (isMock: boolean) => void;
   setIsReplay: (isReplay: boolean) => void;
+  openRunnerModal: (tab?: RunnerTab, file?: string | null) => void;
+  closeRunnerModal: () => void;
+  dismissFinishCard: () => void;
+  restoreFinishCard: () => void;
   resetRun: () => void;
   handleEvent: (event: RunEvent) => void;
   removeParticle: (particleId: string) => void;
@@ -100,6 +109,11 @@ export const useRunStore = create<RunStore>((set, get) => ({
   isReplay: false,
   backendHealthy: true,
 
+  runnerModalOpen: false,
+  runnerModalTab: 'preview',
+  runnerModalFile: null,
+  finishCardDismissed: false,
+
   setPrompt: (prompt) => set({ prompt }),
   setActiveAgentModal: (activeAgentModal) => set({ activeAgentModal }),
   setSelectedFile: (selectedFile) => set({ selectedFile }),
@@ -107,9 +121,25 @@ export const useRunStore = create<RunStore>((set, get) => ({
   setIsMock: (isMock) => set({ isMock }),
   setIsReplay: (isReplay) => set({ isReplay }),
 
+  openRunnerModal: (tab = 'preview', file = null) =>
+    set({
+      runnerModalOpen: true,
+      runnerModalTab: tab,
+      runnerModalFile: file,
+    }),
+
+  closeRunnerModal: () =>
+    set({
+      runnerModalOpen: false,
+    }),
+
+  dismissFinishCard: () => set({ finishCardDismissed: true }),
+  restoreFinishCard: () => set({ finishCardDismissed: false }),
+
   resetRun: () =>
     set({
       runId: null,
+      prompt: '',
       runState: 'idle',
       errorMessage: null,
       agents: JSON.parse(JSON.stringify(INITIAL_AGENTS)),
@@ -118,6 +148,10 @@ export const useRunStore = create<RunStore>((set, get) => ({
       summary: null,
       files: [],
       selectedFile: null,
+      runnerModalOpen: false,
+      runnerModalTab: 'preview',
+      runnerModalFile: null,
+      finishCardDismissed: false,
     }),
 
   removeParticle: (id) =>
@@ -301,6 +335,7 @@ export const useRunStore = create<RunStore>((set, get) => ({
         });
         return {
           runState: 'completed',
+          finishCardDismissed: false,
           summary: event.summary || 'Run completed successfully.',
           agents: finalAgents,
         };

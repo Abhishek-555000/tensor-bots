@@ -1,18 +1,13 @@
-"""
-Stage 1-5: CLI Runner for Tensor Bots
--------------------------------------
-Executes the full LangGraph multi-agent graph from the command line and
-pretty-prints real-time events as they stream from the custom event writer.
-# TEACH: `graph.stream(initial_state, stream_mode="custom")` streams custom events
-# directly as nodes call `get_stream_writer()`.
-Usage:
-    python cli.py "Build a pomodoro timer web page"
-"""
-
+import io
 import sys
 import time
 import uuid
 from pathlib import Path
+
+# Fix Windows console UTF-8 encoding
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
 # Add backend directory to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))

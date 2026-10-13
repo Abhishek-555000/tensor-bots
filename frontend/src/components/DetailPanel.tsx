@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import { X, ChevronDown, ChevronUp, FileCode, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useRunStore } from '../store/useRunStore';
 import { fetchFileContent } from '../services/api';
+import { CodeViewer } from './CodeViewer';
 
 export const DetailPanel: React.FC = () => {
   const { runId, activeAgentModal, setActiveAgentModal, agents, files } = useRunStore();
@@ -86,6 +87,8 @@ export const DetailPanel: React.FC = () => {
               <button
                 onClick={() => setActiveAgentModal(null)}
                 className="p-1 rounded-lg text-text-muted hover:text-white hover:bg-white/5 transition-colors"
+                title="Close panel (Esc)"
+                aria-label="Close agent details"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -185,26 +188,42 @@ export const DetailPanel: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Read-Only Monospace Code Viewer Modal */}
+        {/* Monospace Syntax-Highlighted Code Viewer Modal */}
         {activeCodeFile && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-6 bg-black/70 backdrop-blur-md">
-            <div className="w-full max-w-3xl h-[80vh] rounded-2xl bg-[#090514] border border-border-subtle shadow-2xl flex flex-col overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle/60 bg-surface/50">
+          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md">
+            <div className="w-full max-w-4xl h-[82vh] rounded-2xl bg-[#090514] border border-primary/40 shadow-2xl flex flex-col overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border-subtle/60 bg-[#0E081F]">
                 <div className="flex items-center gap-2 text-xs font-mono text-primary-light">
-                  <FileCode className="w-4 h-4" />
-                  <span>{activeCodeFile}</span>
+                  <FileCode className="w-4 h-4 text-emerald-400" />
+                  <span className="font-bold">{activeCodeFile}</span>
                 </div>
-                <button
-                  onClick={() => setActiveCodeFile(null)}
-                  className="p-1 rounded-lg text-text-muted hover:text-white hover:bg-white/5"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const f = activeCodeFile;
+                      setActiveCodeFile(null);
+                      useRunStore.getState().openRunnerModal('code', f);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-primary-deep/50 hover:bg-primary-deep text-white text-xs font-mono transition-colors"
+                  >
+                    Open in Workspace Runner
+                  </button>
+                  <button
+                    onClick={() => setActiveCodeFile(null)}
+                    className="p-1 rounded-lg text-text-muted hover:text-white hover:bg-white/10"
+                    title="Close code preview (Esc)"
+                    aria-label="Close code preview"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex-1 overflow-auto p-4 bg-[#07040F]">
-                <pre className="text-xs font-mono text-[#E4E0F0] leading-relaxed whitespace-pre-wrap select-text">
-                  {fileContent || '// Loading file content...'}
-                </pre>
+              <div className="flex-1 overflow-hidden p-2 bg-[#07040F]">
+                <CodeViewer
+                  code={fileContent}
+                  filePath={activeCodeFile}
+                  className="h-full border-0"
+                />
               </div>
             </div>
           </div>

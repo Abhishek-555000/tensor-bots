@@ -1,13 +1,5 @@
-"""
-LangGraph Idea: Parallel Worker Node (Planner / Designer)
----------------------------------------------------------
-Like the Researcher, the Planner executes in parallel as part of the manager's fan-out.
-It defines concrete project architecture, UI layout rules, and the exact files (<= 4)
-that the Developer will construct. It writes exclusively to the `plan` state key.
-# TEACH: Both researcher and planner run concurrently without race conditions.
-"""
-
 import time
+import logging
 from app.config import MOCK_LLM
 from app.events import emit, agent_node
 from app.state import TensorState
@@ -21,6 +13,7 @@ Given a user request and a brief from the Project Manager, output a clear implem
 4. Verification Checklist for the Reviewer
 
 Keep your plan clear, structured, and under 250 words."""
+logger = logging.getLogger(__name__)
 
 
 @agent_node("planner")
@@ -50,14 +43,33 @@ def planner_node(state: TensorState) -> dict:
 - Interactive controls functional with zero console errors.
 """
     else:
-        llm = get_llm()
-        prompt_text = (
-            f"{PLANNER_SYSTEM_PROMPT}\n\n"
-            f"User Request: {user_prompt}\n"
-            f"Manager Brief: {brief}"
-        )
-        res = invoke_with_retry(llm, prompt_text, agent_name="planner")
-        plan_md = extract_text(res.content)
+        try:
+            llm = get_llm()
+            prompt_text = (
+                f"{PLANNER_SYSTEM_PROMPT}\n\n"
+                f"User Request: {user_prompt}\n"
+                f"Manager Brief: {brief}"
+            )
+            res = invoke_with_retry(llm, prompt_text, agent_name="planner")
+            plan_md = extract_text(res.content)
+        except Exception as exc:
+            logger.warning(
+                "Planner model failed (%s); continuing with baseline plan",
+                type(exc).__name__,
+            )
+            emit("agent_status", agent="planner", text="Using baseline implementation plan")
+            plan_md = (
+                f"### Implementation Plan\n\n"
+                f"- **Goal:** {user_prompt}\n"
+                "- **Files:** Use a small standalone HTML/CSS/JavaScript project unless the request "
+                "specifically calls for a script.\n"
+                "- **Design:** Build a responsive interface around the main user task with clear "
+                "feedback and accessible controls.\n"
+                "- **Verification:** Exercise the main workflow, edge cases, keyboard behavior, and "
+                "all visible controls.\n"
+                f"- **Provider note:** Planning generation was unavailable ({type(exc).__name__}); "
+                "the implementation will continue using this baseline."
+            )
     
     emit("agent_output", agent="planner", text=plan_md)
     emit("handoff", **{"from": "planner", "to": "developer", "label": "Specs"})

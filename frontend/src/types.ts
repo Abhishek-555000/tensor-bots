@@ -39,3 +39,6 @@ export interface FileItem {
   bytes: number;
   content?: string;
 }
+
+export type RunnerTab = 'preview' | 'code' | 'split' | 'console' | 'specs';
+

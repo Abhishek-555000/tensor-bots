@@ -9,39 +9,102 @@
 
 :root {
   color-scheme: dark;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
+* {
+  box-sizing: border-box;
+}
+
+html,
 body {
   margin: 0;
   padding: 0;
-  background-color: #07040F;
-  color: #E4E0F0;
+  min-width: 360px;
+  min-height: 100%;
+  background-color: #0b0d12;
+  color: #eef0f6;
   font-family: 'Inter', sans-serif;
   overflow: hidden;
-  user-select: none;
 }
 
-/* Subtle circuit/dot grid background */
 .bg-grid-pattern {
-  background-image: radial-gradient(rgba(167, 139, 250, 0.08) 1px, transparent 1px);
-  background-size: 28px 28px;
+  background-color: #0b0d12;
+  background-image:
+    radial-gradient(ellipse at 50% 0%, rgba(116, 92, 196, 0.11), transparent 48%),
+    radial-gradient(rgba(255, 255, 255, 0.025) 0.7px, transparent 0.7px);
+  background-size: auto, 24px 24px;
 }
 
-/* Custom sleek scrollbar for panels and code viewer */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.025);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(167, 139, 250, 0.2);
+  background: rgba(148, 163, 184, 0.25);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.5);
+}
+
+.glass-panel {
+  background: rgba(17, 21, 29, 0.9);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+@media (max-height: 700px) {
+  .workspace-stage {
+    inset: 0.5rem;
+  }
+}
+
+@keyframes neonPulse {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(167, 139, 250, 0.16);
+  }
+  50% {
+    box-shadow: 0 0 24px rgba(167, 139, 250, 0.3);
+  }
+}
+
+.animate-neon-pulse {
+  animation: neonPulse 2.5s infinite ease-in-out;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid rgba(196, 181, 253, 0.8);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
