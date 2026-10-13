@@ -26,10 +26,19 @@ function createWindow() {
 
   const devUrl = 'http://localhost:5173';
   if (process.env.NODE_ENV === 'development' || !app.isPackaged) {
+    console.log(`[Electron] Launching window with ${devUrl}...`);
     mainWindow.loadURL(devUrl);
   } else {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'));
   }
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('[Electron] Desktop window loaded successfully.');
+  });
+
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    console.error(`[Electron] Failed to load URL: ${errorDescription} (${errorCode})`);
+  });
 }
 
 ipcMain.handle('open-folder', async (_event, folderPath) => {
