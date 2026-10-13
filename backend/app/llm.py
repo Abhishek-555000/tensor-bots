@@ -16,10 +16,76 @@ from app.config import (
     GEMINI_MODEL,
     GROQ_API_KEY,
     GROQ_MODEL,
+    OPENAI_API_KEY,
+    OPENAI_MODEL,
     MOCK_LLM,
     REQUEST_TIMEOUT_SECONDS,
 )
 from app.events import emit
+
+
+def _retryable_model_error(exc: Exception) -> bool:
+    """Return True for quota, throttle, access, or missing-model errors that are safe to retry on another backend."""
+    if exc is None:
+        return False
+    err_str = str(exc).lower()
+    return any(
+        token in err_str
+        for token in (
+            "429",
+            "rate limit",
+            "rate_limit",
+            "quota",
+            "resource_exhausted",
+            "too many requests",
+            "daily quota",
+            "exceeded",
+            "timeout",
+            "model not found",
+            "does not exist",
+            "not available",
+            "access denied",
+            "not found",
+            "invalid model",
+            "decommissioned",
+            "deprecated",
+            "unsupported",
+        )
+    )
+
+
+def _fallback_models_for(model_name: Optional[str]) -> list[str]:
+    """Return provider-aligned backups for transient quota exhaustion or unavailable models."""
+    base_model = (model_name or "").strip()
+    if LLM_PROVIDER == "groq":
+        pool = [
+            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile",
+        ]
+    elif LLM_PROVIDER == "openai":
+        pool = [
+            "gpt-4o-mini",
+            "gpt-4.1-mini",
+            "openai/gpt-oss-20b",
+        ]
+    else:
+        pool = [
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-1.5-flash",
+        ]
+    if base_model:
+        pool = [item for item in pool if item != base_model]
+    return list(dict.fromkeys(pool))
+
+
+def _bind_model_for_target(model: Any, target_llm: Any) -> Any:
+    """Retarget a model to a different LLM instance while preserving tool/schema settings."""
+    if hasattr(model, "schema"):
+        return target_llm.with_structured_output(getattr(model, "schema"))
+    if hasattr(model, "tools"):
+        return target_llm.bind_tools(getattr(model, "tools"))
+    return target_llm
 
 
 def extract_text(content: Any) -> str:
@@ -60,7 +126,20 @@ def get_llm(model_name: Optional[str] = None):
             request_timeout=REQUEST_TIMEOUT_SECONDS,
         )
 
+    if LLM_PROVIDER == "openai" and OPENAI_API_KEY:
+        from langchain_openai import ChatOpenAI
+        return ChatOpenAI(
+            model=model_name or OPENAI_MODEL,
+            api_key=OPENAI_API_KEY,
+            temperature=0.2,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+
     # Default provider: Google Gemini
+    if not GOOGLE_API_KEY:
+        raise RuntimeError(
+            "No API key configured for Gemini. Set GOOGLE_API_KEY or GEMINI_API_KEY, or enable MOCK_LLM=1."
+        )
     from langchain_google_genai import ChatGoogleGenerativeAI
     target_model = model_name or GEMINI_MODEL
     return ChatGoogleGenerativeAI(
@@ -73,37 +152,44 @@ def get_llm(model_name: Optional[str] = None):
 
 def invoke_with_retry(model: Any, prompt: Any, agent_name: str = "agent", max_retries: int = 3) -> Any:
     """
-    Invokes an LLM model with automatic retry on transient rate limits or quota blips.
-    If a preview model hits a daily quota limit, transparently falls back to gemini-2.5-flash.
+    Invoke a model with light retry logic and safe fallback between provider-aligned models.
+    When quota or rate limiting is detected, transparently try a different supported model
+    before surfacing the error to the graph.
     """
     last_err = None
+    tried_models: set[str] = set()
+    fallback_names = _fallback_models_for(getattr(model, "model_name", None) or getattr(model, "model", None))
+
     for attempt in range(max_retries + 1):
         try:
             return model.invoke(prompt)
         except Exception as exc:
             last_err = exc
-            err_str = str(exc).lower()
-            
-            # Check for preview model daily quota exhaustion (e.g. gemini-3.8-flash limit of 20 requests/day)
-            if "resource_exhausted" in err_str and ("quota" in err_str or "429" in err_str):
-                emit("agent_status", agent=agent_name, text="Switching to 2.5-flash")
-                try:
-                    fallback_llm = get_llm(model_name="gemini-2.5-flash")
-                    # If model has with_structured_output or bind_tools attached
-                    if hasattr(model, "schema"):
-                        fallback_target = fallback_llm.with_structured_output(getattr(model, "schema"))
-                        return fallback_target.invoke(prompt)
-                    elif hasattr(model, "tools"):
-                        fallback_target = fallback_llm.bind_tools(getattr(model, "tools"))
-                        return fallback_target.invoke(prompt)
-                    else:
-                        return fallback_llm.invoke(prompt)
-                except Exception:
-                    pass
-
-            if attempt < max_retries and any(k in err_str for k in ("429", "rate limit", "quota", "resource exhausted", "timeout")):
-                emit("agent_status", agent=agent_name, text="Rate limited, retrying...")
-                time.sleep(5.0 * (attempt + 1))
-            else:
+            if not _retryable_model_error(exc):
                 if attempt == max_retries:
                     raise
+                continue
+
+            emit("agent_status", agent=agent_name, text="Model unavailable; trying backup model...")
+            for alt_model_name in fallback_names:
+                if alt_model_name in tried_models:
+                    continue
+                tried_models.add(alt_model_name)
+                try:
+                    alt_llm = get_llm(model_name=alt_model_name)
+                    alt_model = _bind_model_for_target(model, alt_llm)
+                    emit("agent_status", agent=agent_name, text=f"Trying fallback model: {alt_model_name}")
+                    return alt_model.invoke(prompt)
+                except Exception as alt_exc:
+                    last_err = alt_exc
+                    if not _retryable_model_error(alt_exc):
+                        raise
+                    emit("agent_status", agent=agent_name, text=f"Fallback model {alt_model_name} unavailable; trying next option...")
+
+            if attempt < max_retries:
+                time.sleep(2.0 * (attempt + 1))
+                continue
+
+            raise RuntimeError(
+                f"LLM provider exhausted for {agent_name}; all backup models are unavailable or quota-blocked."
+            ) from last_err

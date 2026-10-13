@@ -20,7 +20,7 @@ PROJECT_ROOT = BASE_DIR.parent
 load_dotenv(dotenv_path=BASE_DIR / ".env")
 load_dotenv(dotenv_path=PROJECT_ROOT / ".env")
 
-# LLM Provider Selection: 'gemini' or 'groq'
+# LLM Provider Selection: 'gemini', 'groq', or 'openai'
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower().strip()
 
 # Gemini API configuration
@@ -29,9 +29,13 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY") or "
 GEMINI_API_KEY = GOOGLE_API_KEY
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
+# OpenAI-compatible configuration
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
 # Groq Cloud configuration
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
 # Safety net: Mock mode for offline demonstrations without API keys or internet
 MOCK_LLM = os.getenv("MOCK_LLM", "0").lower().strip() in ("1", "true", "yes")

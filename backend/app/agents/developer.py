@@ -227,12 +227,14 @@ def developer_node(state: TensorState) -> dict:
             try:
                 response = invoke_with_retry(llm_with_tools, messages, agent_name="developer")
             except Exception as exc:
-                # If files have already been written to disk, proceed gracefully to review
                 existing_files = [p for p in workspace_path.rglob("*") if p.is_file()]
                 if existing_files:
                     emit("agent_status", agent="developer", text="Files saved; handing off to reviewer")
                     break
-                raise
+
+                emit("agent_status", agent="developer", text="LLM throttled; building offline fallback scaffold")
+                created_files = _mock_build(workspace_path, user_prompt, tools_by_name)
+                break
             messages.append(response)
             
             tool_calls = getattr(response, "tool_calls", [])
