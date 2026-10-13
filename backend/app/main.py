@@ -179,38 +179,37 @@ def run_endpoint(req: RunRequest):
         yield f"data: {json.dumps(start_payload)}\n\n"
 
         key = _cache_key(prompt)
-        with _cache_lock(key):
-            cached_events = _load_cached_run(key, run_dir, prompt)
-            if cached_events is not None:
-                for cached_event in cached_events:
-                    event = {**cached_event, "ts": time.time()}
+        cached_events = _load_cached_run(key, run_dir, prompt)
+        if cached_events is not None:
+            for cached_event in cached_events:
+                event = {**cached_event, "ts": time.time()}
+                yield f"data: {json.dumps(event)}\n\n"
+            return
+
+        initial_state = {
+            "run_id": run_id,
+            "user_prompt": prompt,
+            "iteration": 0,
+            "files": [],
+        }
+        captured_events: list[dict[str, Any]] = []
+
+        try:
+            # Stream custom events produced by get_stream_writer()
+            for event in graph.stream(initial_state, stream_mode="custom"):
+                if isinstance(event, dict):
+                    captured_events.append(event)
                     yield f"data: {json.dumps(event)}\n\n"
-                return
 
-            initial_state = {
-                "run_id": run_id,
-                "user_prompt": prompt,
-                "iteration": 0,
-                "files": [],
+            if any(event.get("type") == "run_finished" for event in captured_events):
+                _save_cached_run(key, run_dir, prompt, captured_events)
+        except Exception as exc:
+            err_payload = {
+                "type": "run_error",
+                "ts": time.time(),
+                "message": str(exc),
             }
-            captured_events: list[dict[str, Any]] = []
-
-            try:
-                # Stream custom events produced by get_stream_writer()
-                for event in graph.stream(initial_state, stream_mode="custom"):
-                    if isinstance(event, dict):
-                        captured_events.append(event)
-                        yield f"data: {json.dumps(event)}\n\n"
-
-                if any(event.get("type") == "run_finished" for event in captured_events):
-                    _save_cached_run(key, run_dir, prompt, captured_events)
-            except Exception as exc:
-                err_payload = {
-                    "type": "run_error",
-                    "ts": time.time(),
-                    "message": str(exc),
-                }
-                yield f"data: {json.dumps(err_payload)}\n\n"
+            yield f"data: {json.dumps(err_payload)}\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -434,7 +433,9 @@ def preview_root(run_id: str):
                 # Detect prompt intent or keywords from file or run_id
                 prompt_hint = run_id
                 c_low = content.lower()
-                if any(k in c_low or k in run_id.lower() for k in ("snake", "arcade", "game")):
+                if any(k in c_low or k in run_id.lower() for k in ("candy", "crush", "match", "puzzle")):
+                    prompt_hint = "candy crush"
+                elif any(k in c_low or k in run_id.lower() for k in ("snake", "cyber snake")):
                     prompt_hint = "snake game"
                 elif any(k in c_low or k in run_id.lower() for k in ("calc", "calculator")):
                     prompt_hint = "calculator"

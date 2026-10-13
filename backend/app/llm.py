@@ -14,7 +14,7 @@ from app.events import emit
 
 # Cascade of resilient models with independent quota pools
 GEMINI_FALLBACK_POOL = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.7-flash"]
-GROQ_FALLBACK_POOL = ["openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+GROQ_FALLBACK_POOL = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
 logger = logging.getLogger(__name__)
 
 

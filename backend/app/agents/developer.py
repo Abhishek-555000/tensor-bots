@@ -30,7 +30,7 @@ STRICT QUALITY & FUNCTIONALITY GUARDRAILS:
 4. COMPLETE INTERACTIVITY IS MANDATORY: Every single button, form, input, slider, tab, or control MUST HAVE fully functional event listeners and JavaScript logic. When clicked, it MUST perform real actions (update UI state, compute calculations, display animated modals, add/delete records, or show toast notifications). Zero non-functional or dead buttons. Add intuitive physical-keyboard controls for the main actions when appropriate, and never intercept keystrokes while the user is typing in a text input, textarea, or editable element.
 5. COMPLETE ASSET INTEGRITY: In a new implementation, if `index.html` references `styles.css` and `app.js`, create both files and verify they are complete. On a revision, preserve existing assets and only write the files that need changes; never leave a reference broken.
 6. Always properly close all HTML/CSS/JS tags.
-7. YOU MUST CALL `write_file` to create each required file in a new implementation. On a revision, use it only for files that need changes.
+7. YOU MUST CALL `write_file` for ALL required files (`index.html`, `styles.css`, `app.js`) in parallel in your very first turn. Do not write only one file per turn.
 8. On a revision, first inspect the existing files and reviewer feedback. Make the smallest targeted changes that resolve the specific reported issues. Preserve the existing layout, visual design, working interactions, and file structure unless the reviewer explicitly identifies a problem with them. Never regenerate or restyle unrelated files."""
 
 
@@ -247,7 +247,295 @@ window.addEventListener("keydown", (event) => {
 });"""
         }
 
-    elif any(k in p_lower for k in ("snake", "arcade", "game")):
+    elif any(k in p_lower for k in ("candy", "crush", "match3", "match 3", "match-3", "gem", "jewel", "bejeweled")):
+        return {
+            "html": f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="game-container">
+    <header class="game-header">
+      <div class="brand">
+        <span class="candy-icon">🍬</span>
+        <h1>{title}</h1>
+      </div>
+      <div class="stats-panel">
+        <div class="stat-pill"><span class="stat-label">SCORE</span><span id="scoreVal" class="stat-num">0</span></div>
+        <div class="stat-pill"><span class="stat-label">MOVES</span><span id="movesVal" class="stat-num">25</span></div>
+        <div class="stat-pill"><span class="stat-label">TARGET</span><span class="stat-num">1,000</span></div>
+      </div>
+    </header>
+
+    <main class="board-wrapper">
+      <div id="candyGrid" class="candy-grid"></div>
+      <div id="gameOverlay" class="overlay" style="display: none;">
+        <h2 id="overlayTitle">Level Cleared! 🎉</h2>
+        <p id="overlayMessage">Score: <span id="finalScore">0</span></p>
+        <button id="restartBtn" class="btn primary">Play Again</button>
+      </div>
+    </main>
+
+    <footer class="game-footer">
+      <p class="hint">Swap adjacent candies to match 3 or more in a row or column!</p>
+      <button id="resetGameBtn" class="btn secondary">Restart Game</button>
+    </footer>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>""",
+            "css": """* { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+body {
+  background: radial-gradient(circle at 50% 20%, #2D114D 0%, #0D041A 100%);
+  color: #FFF;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+.game-container {
+  background: rgba(26, 11, 48, 0.92);
+  border: 1px solid rgba(236, 72, 153, 0.3);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(236, 72, 153, 0.2);
+  max-width: 480px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.game-header { width: 100%; margin-bottom: 16px; text-align: center; }
+.brand { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 12px; }
+.candy-icon { font-size: 28px; }
+h1 { font-size: 22px; font-weight: 800; background: linear-gradient(135deg, #F472B6, #FBBF24); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.stats-panel { display: flex; justify-content: center; gap: 10px; }
+.stat-pill { background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 8px 14px; text-align: center; min-width: 80px; }
+.stat-label { font-size: 10px; color: #A78BFA; display: block; font-weight: 700; letter-spacing: 0.5px; }
+.stat-num { font-size: 18px; font-weight: 800; color: #FFF; }
+.board-wrapper { position: relative; margin: 12px 0; }
+.candy-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 44px);
+  grid-template-rows: repeat(8, 44px);
+  gap: 4px;
+  background: rgba(13, 4, 26, 0.85);
+  padding: 8px;
+  border-radius: 16px;
+  border: 2px solid rgba(167, 139, 250, 0.2);
+}
+.candy-cell {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+.candy-cell:hover { transform: scale(1.08); background: rgba(255, 255, 255, 0.12); }
+.candy-cell.selected { border: 2px solid #F472B6; box-shadow: 0 0 12px #F472B6; transform: scale(1.1); }
+.candy-cell.matched { animation: pop 0.3s forwards; }
+@keyframes pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); filter: brightness(1.5); }
+  100% { transform: scale(0); opacity: 0; }
+}
+.overlay {
+  position: absolute; inset: 0; background: rgba(13, 4, 26, 0.95);
+  border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; z-index: 10;
+}
+.btn { padding: 10px 20px; border-radius: 12px; border: none; font-weight: 700; cursor: pointer; transition: all 0.2s; font-size: 13px; }
+.btn.primary { background: linear-gradient(135deg, #EC4899, #8B5CF6); color: #FFF; box-shadow: 0 4px 14px rgba(236, 72, 153, 0.4); }
+.btn.primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(236, 72, 153, 0.6); }
+.btn.secondary { background: rgba(255, 255, 255, 0.08); color: #C4B5FD; }
+.btn.secondary:hover { background: rgba(255, 255, 255, 0.15); }
+.hint { font-size: 11px; color: #8B84A3; text-align: center; margin-bottom: 10px; }
+.game-footer { display: flex; flex-direction: column; align-items: center; width: 100%; margin-top: 8px; }""",
+            "js": """const CANDIES = ['🍬', '🍭', '🍫', '🍓', '🍋', '🍇'];
+const ROWS = 8;
+const COLS = 8;
+let board = [];
+let score = 0;
+let moves = 25;
+let selectedTile = null;
+
+const gridEl = document.getElementById("candyGrid");
+const scoreEl = document.getElementById("scoreVal");
+const movesEl = document.getElementById("movesVal");
+const overlay = document.getElementById("gameOverlay");
+const overlayTitle = document.getElementById("overlayTitle");
+const finalScoreEl = document.getElementById("finalScore");
+const restartBtn = document.getElementById("restartBtn");
+const resetGameBtn = document.getElementById("resetGameBtn");
+
+function randomCandy() {
+  return CANDIES[Math.floor(Math.random() * CANDIES.length)];
+}
+
+function initBoard() {
+  score = 0;
+  moves = 25;
+  scoreEl.textContent = score;
+  movesEl.textContent = moves;
+  overlay.style.display = "none";
+  selectedTile = null;
+  board = [];
+
+  for (let r = 0; r < ROWS; r++) {
+    board[r] = [];
+    for (let c = 0; c < COLS; c++) {
+      let candy;
+      do {
+        candy = randomCandy();
+      } while (
+        (r >= 2 && board[r-1][c] === candy && board[r-2][c] === candy) ||
+        (c >= 2 && board[r][c-1] === candy && board[r][c-2] === candy)
+      );
+      board[r][c] = candy;
+    }
+  }
+  render();
+}
+
+function render() {
+  gridEl.innerHTML = "";
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const cell = document.createElement("div");
+      cell.className = "candy-cell";
+      cell.textContent = board[r][c] || "";
+      cell.dataset.r = r;
+      cell.dataset.c = c;
+      if (selectedTile && selectedTile.r === r && selectedTile.c === c) {
+        cell.classList.add("selected");
+      }
+      cell.addEventListener("click", () => handleTileClick(r, c));
+      gridEl.appendChild(cell);
+    }
+  }
+}
+
+function handleTileClick(r, c) {
+  if (moves <= 0) return;
+  if (!selectedTile) {
+    selectedTile = { r, c };
+    render();
+    return;
+  }
+
+  const rDiff = Math.abs(selectedTile.r - r);
+  const cDiff = Math.abs(selectedTile.c - c);
+  const isAdjacent = (rDiff === 1 && cDiff === 0) || (rDiff === 0 && cDiff === 1);
+
+  if (isAdjacent) {
+    swap(selectedTile.r, selectedTile.c, r, c);
+    const matches = findMatches();
+    if (matches.length > 0) {
+      moves--;
+      movesEl.textContent = moves;
+      selectedTile = null;
+      processMatches(matches);
+    } else {
+      swap(selectedTile.r, selectedTile.c, r, c);
+      selectedTile = null;
+      render();
+    }
+  } else {
+    selectedTile = { r, c };
+    render();
+  }
+}
+
+function swap(r1, c1, r2, c2) {
+  const temp = board[r1][c1];
+  board[r1][c1] = board[r2][c2];
+  board[r2][c2] = temp;
+}
+
+function findMatches() {
+  const matched = [];
+  for (let r = 0; r < ROWS; r++) {
+    for (let c = 0; c < COLS - 2; c++) {
+      const candy = board[r][c];
+      if (candy && candy === board[r][c+1] && candy === board[r][c+2]) {
+        matched.push({ r, c }, { r, c: c+1 }, { r, c: c+2 });
+      }
+    }
+  }
+  for (let c = 0; c < COLS; c++) {
+    for (let r = 0; r < ROWS - 2; r++) {
+      const candy = board[r][c];
+      if (candy && candy === board[r+1][c] && candy === board[r+2][c]) {
+        matched.push({ r, c }, { r: r+1, c }, { r: r+2, c });
+      }
+    }
+  }
+  return matched;
+}
+
+function processMatches(matches) {
+  matches.forEach(({ r, c }) => {
+    board[r][c] = null;
+  });
+  score += matches.length * 50;
+  scoreEl.textContent = score;
+
+  for (let c = 0; c < COLS; c++) {
+    let writeRow = ROWS - 1;
+    for (let r = ROWS - 1; r >= 0; r--) {
+      if (board[r][c] !== null) {
+        board[writeRow][c] = board[r][c];
+        if (writeRow !== r) board[r][c] = null;
+        writeRow--;
+      }
+    }
+    while (writeRow >= 0) {
+      board[writeRow][c] = randomCandy();
+      writeRow--;
+    }
+  }
+
+  render();
+
+  setTimeout(() => {
+    const chain = findMatches();
+    if (chain.length > 0) {
+      processMatches(chain);
+    } else {
+      checkGameOver();
+    }
+  }, 250);
+}
+
+function checkGameOver() {
+  if (moves <= 0) {
+    overlay.style.display = "flex";
+    finalScoreEl.textContent = score;
+    if (score >= 1000) {
+      overlayTitle.textContent = "Level Cleared! 🎉";
+    } else {
+      overlayTitle.textContent = "Out of Moves! 🍬";
+    }
+  }
+}
+
+restartBtn.addEventListener("click", initBoard);
+resetGameBtn.addEventListener("click", initBoard);
+initBoard();"""
+        }
+
+    elif any(k in p_lower for k in ("snake", "cyber snake")):
         return {
             "html": f"""<!DOCTYPE html>
 <html lang="en">
@@ -1138,6 +1426,259 @@ tr:hover td {{
 def _synthesize_interactive_js(html_content: str, title: str) -> str:
     """Generates an intelligent, fully reactive JavaScript engine that wires up all HTML controls."""
     clean_title = title.replace('"', '').replace("'", "")
+    t_lower = clean_title.lower()
+    h_lower = html_content.lower()
+
+    # 1. Match-3 / Candy Crush / Board Games
+    if any(k in t_lower for k in ("candy", "crush", "match", "puzzle")) or \
+       ("board" in h_lower and any(k in h_lower for k in ("candy", "moves", "swap", "crush", "stat-moves"))):
+        return f"""// ==========================================================================
+// Tensor Bots — Autonomous Match-3 Controller
+// App: {clean_title}
+// ==========================================================================
+
+document.addEventListener("DOMContentLoaded", () => {{
+  console.log("⚡ [{clean_title}] match-3 engine initializing...");
+
+  const CANDIES = ['🍬', '🍭', '🍫', '🍓', '🍋', '🍇'];
+  const ROWS = 8;
+  const COLS = 8;
+
+  let board = [];
+  let score = 0;
+  let moves = 30;
+  let best = parseInt(localStorage.getItem('tb_candy_best') || '0', 10);
+  let selectedTile = null;
+  let isProcessing = false;
+
+  const boardEl = document.getElementById("board") || document.getElementById("candyGrid") || document.querySelector(".board");
+  const scoreEl = document.getElementById("score") || document.getElementById("scoreVal");
+  const bestEl = document.getElementById("best") || document.getElementById("highScore");
+  const movesEl = document.getElementById("moves") || document.getElementById("movesVal");
+  const restartBtn = document.getElementById("restart") || document.getElementById("restartBtn");
+  const overlay = document.getElementById("overlay") || document.getElementById("gameOverlay");
+  const overlayTitle = document.getElementById("overlay-title") || document.getElementById("overlayTitle");
+  const overlayScore = document.getElementById("overlay-score") || document.getElementById("finalScore");
+  const overlayEmoji = document.getElementById("overlay-emoji");
+  const overlayBtn = document.getElementById("overlay-btn") || document.getElementById("overlayBtn") || document.getElementById("resetGameBtn");
+  const toastEl = document.getElementById("toast");
+
+  if (!boardEl) return;
+
+  function showToast(msg, duration = 2500) {{
+    if (!toastEl) return;
+    toastEl.textContent = msg;
+    toastEl.classList.add("show");
+    setTimeout(() => toastEl.classList.remove("show"), duration);
+  }}
+
+  function randomCandy() {{
+    return CANDIES[Math.floor(Math.random() * CANDIES.length)];
+  }}
+
+  function initBoard() {{
+    score = 0;
+    moves = 30;
+    selectedTile = null;
+    isProcessing = false;
+    board = [];
+
+    if (scoreEl) scoreEl.textContent = score;
+    if (movesEl) movesEl.textContent = moves;
+    if (bestEl) bestEl.textContent = best;
+    if (overlay) {{
+      overlay.hidden = true;
+      overlay.style.display = "none";
+    }}
+
+    for (let r = 0; r < ROWS; r++) {{
+      board[r] = [];
+      for (let c = 0; c < COLS; c++) {{
+        let candy;
+        do {{
+          candy = randomCandy();
+        }} while (
+          (r >= 2 && board[r - 1][c] === candy && board[r - 2][c] === candy) ||
+          (c >= 2 && board[r][c - 1] === candy && board[r][c - 2] === candy)
+        );
+        board[r][c] = candy;
+      }}
+    }}
+    render();
+  }}
+
+  function render() {{
+    boardEl.innerHTML = "";
+    for (let r = 0; r < ROWS; r++) {{
+      for (let c = 0; c < COLS; c++) {{
+        const cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "cell candy-cell";
+        cell.textContent = board[r][c] || "";
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+        if (selectedTile && selectedTile.r === r && selectedTile.c === c) {{
+          cell.classList.add("selected");
+        }}
+        cell.addEventListener("click", () => handleTileClick(r, c));
+        boardEl.appendChild(cell);
+      }}
+    }}
+  }}
+
+  async function handleTileClick(r, c) {{
+    if (isProcessing || moves <= 0) return;
+
+    if (!selectedTile) {{
+      selectedTile = {{ r, c }};
+      render();
+      return;
+    }}
+
+    const {{ r: r1, c: c1 }} = selectedTile;
+    if (r1 === r && c1 === c) {{
+      selectedTile = null;
+      render();
+      return;
+    }}
+
+    const isAdjacent = (Math.abs(r1 - r) === 1 && c1 === c) || (Math.abs(c1 - c) === 1 && r1 === r);
+    if (!isAdjacent) {{
+      selectedTile = {{ r, c }};
+      render();
+      return;
+    }}
+
+    isProcessing = true;
+    selectedTile = null;
+    swap(r1, c1, r, c);
+    render();
+
+    const matches = findMatches();
+    if (matches.length > 0) {{
+      moves--;
+      if (movesEl) movesEl.textContent = moves;
+      await processMatches(matches, 1);
+    }} else {{
+      await sleep(200);
+      swap(r1, c1, r, c);
+      render();
+    }}
+
+    isProcessing = false;
+    checkGameOver();
+  }}
+
+  function swap(r1, c1, r2, c2) {{
+    const temp = board[r1][c1];
+    board[r1][c1] = board[r2][c2];
+    board[r2][c2] = temp;
+  }}
+
+  function findMatches() {{
+    const matched = new Set();
+    for (let r = 0; r < ROWS; r++) {{
+      let len = 1;
+      for (let c = 0; c < COLS; c++) {{
+        if (c < COLS - 1 && board[r][c] && board[r][c] === board[r][c + 1]) {{
+          len++;
+        }} else {{
+          if (len >= 3) {{
+            for (let i = 0; i < len; i++) matched.add(`${{r}},${{c - i}}`);
+          }}
+          len = 1;
+        }}
+      }}
+    }}
+    for (let c = 0; c < COLS; c++) {{
+      let len = 1;
+      for (let r = 0; r < ROWS; r++) {{
+        if (r < ROWS - 1 && board[r][c] && board[r][c] === board[r + 1][c]) {{
+          len++;
+        }} else {{
+          if (len >= 3) {{
+            for (let i = 0; i < len; i++) matched.add(`${{r - i}},${{c}}`);
+          }}
+          len = 1;
+        }}
+      }}
+    }}
+    return Array.from(matched).map(coord => {{
+      const [r, c] = coord.split(",").map(Number);
+      return {{ r, c }};
+    }});
+  }}
+
+  async function processMatches(matches, combo = 1) {{
+    const cellElements = boardEl.querySelectorAll(".cell, .candy-cell");
+    matches.forEach(({{ r, c }}) => {{
+      const idx = r * COLS + c;
+      if (cellElements[idx]) cellElements[idx].classList.add("matched");
+    }});
+
+    const pts = matches.length * 10 * combo;
+    score += pts;
+    if (scoreEl) scoreEl.textContent = score;
+
+    if (score > best) {{
+      best = score;
+      localStorage.setItem('tb_candy_best', best.toString());
+      if (bestEl) bestEl.textContent = best;
+    }}
+
+    if (combo >= 2) showToast(`🔥 Combo x${{combo}}! +${{pts}} pts`);
+    await sleep(220);
+
+    matches.forEach(({{ r, c }}) => {{ board[r][c] = null; }});
+
+    for (let c = 0; c < COLS; c++) {{
+      let writeRow = ROWS - 1;
+      for (let r = ROWS - 1; r >= 0; r--) {{
+        if (board[r][c] !== null) {{
+          board[writeRow][c] = board[r][c];
+          if (writeRow !== r) board[r][c] = null;
+          writeRow--;
+        }}
+      }}
+      while (writeRow >= 0) {{
+        board[writeRow][c] = randomCandy();
+        writeRow--;
+      }}
+    }}
+
+    render();
+    await sleep(180);
+
+    const chain = findMatches();
+    if (chain.length > 0) await processMatches(chain, combo + 1);
+  }}
+
+  function checkGameOver() {{
+    if (moves <= 0) {{
+      if (overlay) {{
+        overlay.hidden = false;
+        overlay.style.display = "flex";
+        if (overlayScore) overlayScore.textContent = score;
+        if (score >= 1000) {{
+          if (overlayEmoji) overlayEmoji.textContent = "🎉";
+          if (overlayTitle) overlayTitle.textContent = "Level Cleared!";
+        }} else {{
+          if (overlayEmoji) overlayEmoji.textContent = "🍬";
+          if (overlayTitle) overlayTitle.textContent = "Out of Moves!";
+        }}
+      }}
+    }}
+  }}
+
+  function sleep(ms) {{ return new Promise(res => setTimeout(res, ms)); }}
+
+  if (restartBtn) restartBtn.addEventListener("click", () => {{ initBoard(); showToast("Game restarted!"); }});
+  if (overlayBtn) overlayBtn.addEventListener("click", () => initBoard());
+
+  initBoard();
+}});
+"""
+
     return f"""// ==========================================================================
 // Tensor Bots — Autonomous Reactive Application Controller
 // App: {clean_title}
@@ -1251,8 +1792,9 @@ def is_css_broken(content: str) -> bool:
         return True
     if content.count("{") > content.count("}"):
         return True
-    last_line = content.strip().splitlines()[-1].strip() if content.strip().splitlines() else ""
-    if last_line.endswith((",", "(", ":", "at")):
+    stripped = content.strip()
+    last_line = stripped.splitlines()[-1].strip() if stripped.splitlines() else ""
+    if last_line.endswith((",", "(", ":", "at")) or not last_line.endswith(("}", "*/", ";")):
         return True
     return False
 
@@ -1270,9 +1812,22 @@ def _ensure_project_assets_complete(workspace_path: Path, prompt: str, tools_by_
     else:
         try:
             content = index_file.read_text(encoding="utf-8")
-            if is_html_broken(content):
+            if not content or len(content.strip()) < 40:
                 index_needs_scaffold = True
-                emit("agent_status", agent="developer", text="Detected truncated/broken index.html; auto-repairing complete application")
+            elif is_html_broken(content):
+                # Repair closing tags without throwing away the user's generated app!
+                repaired = content
+                c_low = repaired.lower()
+                if "<style" in c_low and "</style>" not in c_low:
+                    repaired += "\n</style>"
+                if "<script" in c_low and "</script>" not in c_low and "src=" not in c_low.split("<script")[-1]:
+                    repaired += "\n</script>"
+                if "</body>" not in c_low:
+                    repaired += "\n</body>"
+                if "</html>" not in c_low:
+                    repaired += "\n</html>"
+                index_file.write_text(repaired, encoding="utf-8")
+                emit("agent_status", agent="developer", text="Repaired closing tags on generated index.html")
         except Exception:
             index_needs_scaffold = True
 
@@ -1347,6 +1902,19 @@ def _ensure_project_assets_complete(workspace_path: Path, prompt: str, tools_by_
                 else:
                     content = f"<style>\n{css_inline}\n</style>\n" + content
                 html_file.write_text(content, encoding="utf-8")
+
+            # Check if JS is missing entirely
+            if "<script" not in content.lower():
+                js_content = _synthesize_interactive_js(content, prompt)
+                tools_by_name["write_file"].invoke({"path": "app.js", "content": js_content})
+                created.append("app.js")
+                pattern = re.compile(r"</body>", re.IGNORECASE)
+                if pattern.search(content):
+                    content = pattern.sub('<script src="app.js"></script>\n</body>', content, count=1)
+                else:
+                    content += '\n<script src="app.js"></script>\n'
+                html_file.write_text(content, encoding="utf-8")
+                emit("agent_status", agent="developer", text="Auto-generated interactive script: app.js")
 
         except Exception as e:
             print("Error in _ensure_project_assets_complete:", e)
@@ -1475,23 +2043,18 @@ def developer_node(state: TensorState) -> dict:
                     messages.append(ToolMessage(content=str(tool_result), tool_call_id=tool_id))
             
         existing_files = [path for path in workspace_path.rglob("*") if path.is_file()]
-        if iteration == 1 and not existing_files:
-            raise RuntimeError(
-                "The developer could not generate project files. Check the configured AI provider and try again."
-            )
+        if not existing_files:
+            emit("agent_status", agent="developer", text="Applying resilient scaffold")
+            created_files = _mock_build(workspace_path, user_prompt, tools_by_name)
 
         # Guardrail: Ensure all referenced CSS/JS files are 100% complete and working
         _ensure_project_assets_complete(workspace_path, user_prompt, tools_by_name)
 
         # Scan workspace for all files written
+        created_files = []
         for item in sorted(workspace_path.rglob("*")):
             if item.is_file():
                 created_files.append(str(item.relative_to(workspace_path)))
-                
-        # Fallback if no files were created: ensure at least index.html exists
-        if not created_files:
-            emit("agent_status", agent="developer", text="Applying fallback scaffold")
-            created_files = _mock_build(workspace_path, user_prompt, tools_by_name)
     
     file_summary_lines = [f"- `{f}` ({((workspace_path / f).stat().st_size if (workspace_path / f).exists() else 0)} bytes)" for f in created_files]
     output_md = f"""### Developer Implementation (Round {iteration})

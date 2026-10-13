@@ -2,7 +2,8 @@
   "name": "tensor-bots-frontend",
   "version": "1.0.0",
   "description": "Tensor Bots Desktop App & Constellation Flow",
-  "main": "electron/main.js",
+  "main": "electron/main.cjs",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "dev:electron": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
