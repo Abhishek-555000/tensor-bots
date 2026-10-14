@@ -18,10 +18,10 @@ Two outputs are required:
 
 ## 2. Hard constraints
 
-- Backend: **Python 3.11+, LangGraph, LangChain, FastAPI**, LLM = **Google Gemini** via `langchain-google-genai`. Read `GOOGLE_API_KEY` from `.env`; model name from `GEMINI_MODEL` (default `gemini-2.5-flash`, must be changeable without code edits).
+- Backend: **Python 3.11+, LangGraph, LangChain, FastAPI**, LLM = **Groq Cloud API** via `langchain-groq`. Read `GROQ_API_KEY` from `.env`; model name from `GROQ_MODEL` (default `openai/gpt-oss-120b`, must be changeable without code edits).
 - Frontend: **React + Vite + TypeScript, Tailwind CSS, Electron, Framer Motion, zustand**. No React Flow (custom SVG for full control of the look).
 - Audience: intermediate Python students on their own laptops (Windows/macOS/Linux). Keep every backend file **short, readable, heavily commented**. Prefer clarity over cleverness. No unnecessary abstractions, no class hierarchies.
-- **Pin exact versions** of every dependency in `requirements.txt` / `package.json` after you have tested them together. Verify current LangGraph / `langchain-google-genai` APIs against their docs before using them (import paths change between versions).
+- **Pin exact versions** of every dependency in `requirements.txt` / `package.json` after you have tested them together. Verify current LangGraph / `langchain-groq` APIs against their docs before using them (import paths change between versions).
 - Researcher is **LLM-only (no web search)** to keep setup simple.
 - Developer **writes real files** to disk using tools, inside a sandboxed folder. No code execution.
 - Must work **offline-capable for the UI** (bundle fonts locally; no CDN at runtime).
@@ -34,7 +34,7 @@ tensor-bots/
 ├─ README.md                 # 10-line quickstart
 ├─ backend/
 │  ├─ requirements.txt
-│  ├─ .env.example           # GOOGLE_API_KEY=, GEMINI_MODEL=, MOCK_LLM=0, MAX_REVIEW_ROUNDS=2
+│  ├─ .env.example           # GROQ_API_KEY=, GROQ_MODEL=, MOCK_LLM=0, MAX_REVIEW_ROUNDS=2
 │  ├─ hello_graph.py         # stage 0: proves key + LangGraph work
 │  ├─ cli.py                 # runs the graph, pretty-prints events (used in stages 1–5)
 │  └─ app/
@@ -133,7 +133,7 @@ Handoffs to emit: manager→researcher, manager→planner, researcher→develope
 ## 5. Developer-agent guardrails
 
 - ≤ 4 files, each < 150 lines; plain HTML/CSS/JS or a single Python script. Tell the model this in the prompt.
-- If Gemini returns malformed tool calls or an empty response, retry once, then emit `run_error` with a clear message.
+- If Groq returns malformed tool calls or an empty response, retry once, then emit `run_error` with a clear message.
 - Wrap LLM calls in a small retry (2 attempts, short backoff) to survive rate-limit blips. Surface "rate limited, retrying" as an `agent_status`.
 
 ## 6. Mock mode
@@ -214,7 +214,7 @@ At the top of each backend file, add a 3–5 line comment explaining the **one L
 
 | Stage | Participants build | Run with |
 |---|---|---|
-| 0 | env, `.env`, `hello_graph.py` (one Gemini call inside a 1-node graph) | `python hello_graph.py` |
+| 0 | env, `.env`, `hello_graph.py` (one Groq call inside a 1-node graph) | `python hello_graph.py` |
 | 1 | `TensorState`, first real node, `cli.py` wiring | `python cli.py "..."` |
 | 2 | Manager: structured output → briefs, `add_edge` | cli |
 | 3 | Researcher + Planner in parallel, join into a developer stub | cli |
@@ -225,7 +225,7 @@ At the top of each backend file, add a 3–5 line comment explaining the **one L
 ## 10. Quality bar / Definition of done
 
 - [ ] Fresh clone → follow README → working run on a clean Windows and a clean macOS/Linux machine.
-- [ ] Full run in real Gemini mode completes in **under ~2 minutes** for the demo prompts below, and in mock mode in ~20 s.
+- [ ] Full run in real Groq mode completes in **under ~2 minutes** for the demo prompts below, and in mock mode in ~20 s.
 - [ ] Review loop demonstrably triggers at least once on some prompts and terminates by the cap.
 - [ ] No unhandled exceptions: all failures become `run_error` with a human message.
 - [ ] Animations at a smooth 60 fps on a mid-range laptop; no layout jumps.
@@ -241,7 +241,7 @@ Auth, databases, deployment, web search, code execution, multi-user, packaging i
 ## 12. Order of work
 
 1. Backend skeleton + mock mode + `cli.py` (get a full mock run printing events).
-2. Real Gemini agents, tools, review loop; tune prompts until the demo prompts succeed reliably.
+2. Real Groq agents, tools, review loop; tune prompts until the demo prompts succeed reliably.
 3. FastAPI SSE; save one real run's events as `replay.json`.
 4. Frontend with replay mode first (no backend needed), then live SSE.
 5. Cut `starter` and the `stage-N-solution` tags; test each from a clean checkout.
