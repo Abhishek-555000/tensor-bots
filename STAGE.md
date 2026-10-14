@@ -1,27 +1,28 @@
-# Stage 4: Developer Agent & Sandboxed File Tools
+# Stage 5: Reviewer Agent, Conditional Loop & Final Delivery
 
 ## Goal
-Implement the real **Developer** agent that takes findings from the Researcher and architectural specs from the Planner, generates production-quality code, and writes real files (`index.html`, `styles.css`, `app.js`) to disk in a sandboxed `workspace/<run_id>/` folder.
+Close the loop by adding the **Reviewer** agent, implementing a **Conditional Edge** that routes between iteration revisions and completion, and finishing with the **Project Manager**'s final delivery summary.
 
 ---
 
 ## What We're Learning
-- **Sandboxed Tool Calling (`make_file_tools`)**: Safe file operations restricted strictly to a dedicated run directory. Path traversal attempts (`../`) are blocked.
-- **`emit("file_written")`**: Broadcasting file system mutation events with file path and byte counts so the frontend or CLI can update in real time.
-- **Code Generation & Parsing**: Prompting Groq to output clean modular web applications and reliably extracting files.
+- **Conditional Routing (`workflow.add_conditional_edges`)**: Dynamic decision trees in LangGraph based on runtime state values (`approved: bool`, `iteration >= MAX_REVIEW_ROUNDS`).
+- **Loop Guardrails**: Protecting against infinite loops using `MAX_REVIEW_ROUNDS` (default `2`).
+- **Reviewer Agent**: Inspecting generated code on disk, running validation heuristics, and returning structured verdicts (`ReviewVerdict`).
+- **Project Finalization**: Handing off verified deliverables to `manager_final` for the executive summary.
 
 ---
 
 ## Architecture in This Stage
 ```
                    ┌─> [ Researcher ] ─┐
-START ──> [ Manager ]                  ├─> [ Developer (Real Tools) ] ──> END
-                   └─> [  Planner   ] ─┘          │
+START ──> [ Manager ]                  ├─> [ Developer ] <───┐ (changes requested)
+                   └─> [  Planner   ] ─┘          │          │
+                                                  ▼          │
+                                            [ Reviewer ] ────┘
+                                                  │ (approved OR max rounds)
                                                   ▼
-                                       workspace/<run_id>/
-                                       ├── index.html
-                                       ├── styles.css
-                                       └── app.js
+                                          [ Manager Final ] ──> END
 ```
 
 ---
@@ -35,20 +36,32 @@ python backend/cli.py "Build a pomodoro timer web page"
 
 ### Expected Output:
 ```
-18:50:12 🚀 RUN STARTED — ID: run_20261014_185012_9b2e
+18:52:15 🚀 RUN STARTED — ID: run_20261014_185215_4a1f
        Prompt: Build a pomodoro timer web page
 
-18:50:12 [ MANAGER  ] ⚡ Started work
+18:52:15 [ MANAGER  ] ⚡ Started work
 ...
-18:50:17 [DEVELOPER ] ⚡ Started work
-18:50:17 [DEVELOPER ] ⋯ Generating HTML, CSS, and JS code via LLM...
-18:50:20 [DEVELOPER ] 📝 Wrote index.html (1420 bytes)
-18:50:20 [DEVELOPER ] 📝 Wrote styles.css (1890 bytes)
-18:50:20 [DEVELOPER ] 📝 Wrote app.js (2150 bytes)
-18:50:20 ➔ developer passed 'Code for review' to reviewer
-18:50:20 [DEVELOPER ] ✓ Done — Developer completed task.
+18:52:25 [DEVELOPER ] 📝 Wrote index.html (1449 bytes)
+18:52:25 [DEVELOPER ] 📝 Wrote styles.css (2253 bytes)
+18:52:25 [DEVELOPER ] 📝 Wrote app.js (5702 bytes)
+18:52:25 ➔ developer passed 'Code for review' to reviewer
+18:52:25 [DEVELOPER ] ✓ Done — Developer completed task.
+18:52:25 [ REVIEWER ] ⚡ Started work
+18:52:25 [ REVIEWER ] ⋯ Evaluating code completeness & quality...
+18:52:28 [ REVIEWER ] ⚖ Verdict (Round 1): APPROVED ✓
+18:52:28 ➔ reviewer passed 'Approval verdict' to manager
+18:52:28 [ REVIEWER ] ✓ Done — Review complete: approved
+18:52:28 [ MANAGER  ] ⚡ Started work
+18:52:28 [ MANAGER  ] ⋯ Finalizing project delivery...
+18:52:31 [ MANAGER  ] ✓ Done — Final delivery ready
+
+🏁 RUN COMPLETED
+       Deliverables (3 files):
+       • index.html
+       • styles.css
+       • app.js
 ```
 
-Check your `workspace/run_.../` directory to see the real generated application files! Open `index.html` in your web browser to test it out.
+All 5 agents are now collaborating in a resilient cyclical multi-agent graph!
 
-Proceed to **Stage 5** to add the **Reviewer** and the iterative feedback loop.
+Proceed to **Stage 6** to connect this graph to the FastAPI SSE server and launch the desktop Electron UI.

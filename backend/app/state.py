@@ -18,6 +18,20 @@ class AgentBriefs(BaseModel):
     )
 
 
+class ReviewVerdict(BaseModel):
+    """Structured evaluation returned by the Reviewer agent."""
+    approved: bool = Field(
+        description="True if the implementation matches the plan and has no critical bugs, False if revisions are needed"
+    )
+    issues: List[str] = Field(
+        default_factory=list,
+        description="Specific actionable issues or missing elements if changes are requested"
+    )
+    summary: str = Field(
+        description="One-sentence verdict summary"
+    )
+
+
 class TensorState(TypedDict, total=False):
     """
     The shared state dictionary for Tensor Bots.
@@ -30,5 +44,7 @@ class TensorState(TypedDict, total=False):
     briefs: Dict[str, str]       # Serialized AgentBriefs
     research: str                # Markdown output from Researcher
     plan: str                    # Markdown plan & file breakdown from Planner
-    files: List[str]             # List of files created
-    iteration: int               # Cycle counter
+    files: List[str]             # List of file paths created in workspace/<run_id>/
+    review: Dict[str, Any]       # Serialized ReviewVerdict
+    iteration: int               # Review cycle counter (1-based)
+    final_summary: str           # Final wrap-up summary from Manager
