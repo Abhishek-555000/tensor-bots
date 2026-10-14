@@ -1,61 +1,40 @@
-# Stage 0: Setup & Hello Graph
+# Stage 1: First Agent (Researcher) & CLI Runner
 
 ## Goal
-Verify your Python environment, Groq Cloud API credentials, and LangGraph installation with a minimal 1-node graph.
+Build your first real multi-agent team member: the **Researcher** agent, define the shared `TensorState` dictionary, and run it via the terminal CLI.
 
 ---
 
 ## What We're Learning
-- **StateGraph**: LangGraph's core abstraction for state-driven execution.
-- **TypedDict State**: Defining the schema of state passed between nodes.
-- **Node**: A Python function that takes the current state and returns state updates.
-- **Edges (`START -> greeter -> END`)**: Controlling graph entry and termination.
+- **`TensorState`**: A `TypedDict` holding the shared state across all agents. With `total=False`, each agent only needs to return keys it modifies.
+- **`@agent_node` Decorator**: Automatically emits `agent_started` and `agent_done` lifecycle events, tracks timing, and handles exceptions cleanly.
+- **Node Streaming (`graph.stream`)**: Real-time event consumption in `cli.py` using `stream_mode="custom"`.
 
 ---
 
-## 1. Setup Your Environment
-
-Make sure you have installed the dependencies:
-```bash
-cd backend
-pip install -r requirements.txt
+## Architecture in This Stage
 ```
-
-Create your `.env` file in the `backend/` directory (or workspace root):
-```bash
-cp .env.example .env
+START ──> [ Researcher ] ──> END
 ```
-Open `.env` and fill in your Groq API key:
-```env
-GROQ_API_KEY=gsk_your_groq_api_key_here
-GROQ_MODEL=openai/gpt-oss-120b
-MOCK_LLM=0
-```
-> **Note**: If you don't have an API key or want to test offline, set `MOCK_LLM=1`.
 
 ---
 
-## 2. Run the Verification Script
+## How to Test
 
-Run the minimal single-node graph:
+Run the CLI runner from your terminal:
 ```bash
-python hello_graph.py
+python backend/cli.py "Build a pomodoro timer web page"
 ```
 
 ### Expected Output:
 ```
-============================================================
-Tensor Bots - Stage 0: Hello Graph (Groq)
-============================================================
-Groq Key Set     : Yes
-Model Configured : openai/gpt-oss-120b
-Mock Mode Active : False
-------------------------------------------------------------
-[*] Node executing with prompt: 'Confirm that Tensor Bots is ready to build multi-agent systems.'...
+18:42:01 🚀 RUN STARTED — ID: run_20261014_184201_7a2b
+       Prompt: Build a pomodoro timer web page
 
-[SUCCESS] Graph Execution Result:
-Tensor Bots is fully operational and ready to build multi-agent systems!
-============================================================
+18:42:01 [RESEARCHER] ⚡ Started work
+18:42:01 [RESEARCHER] ⋯ Analyzing tech constraints...
+18:42:04 ➔ researcher passed 'Findings' to developer
+18:42:04 [RESEARCHER] ✓ Done — Completed research
 ```
 
-If you see `[SUCCESS] Graph Execution Result:`, your environment and Groq connection are working properly. You are ready to move to **Stage 1**!
+You have a functioning LLM agent communicating structured findings into state! Proceed to **Stage 2** to introduce the **Project Manager**.
