@@ -1,67 +1,61 @@
-# Stage 5: Reviewer Agent, Conditional Loop & Final Delivery
+# Stage 6: FastAPI SSE & Desktop Electron UI
 
 ## Goal
-Close the loop by adding the **Reviewer** agent, implementing a **Conditional Edge** that routes between iteration revisions and completion, and finishing with the **Project Manager**'s final delivery summary.
+Connect your 5-agent LangGraph system to a **FastAPI Server-Sent Events (SSE)** backend and launch the custom **Electron + React desktop UI** with real-time particle animations, robot state avatars, and interactive code preview.
 
 ---
 
 ## What We're Learning
-- **Conditional Routing (`workflow.add_conditional_edges`)**: Dynamic decision trees in LangGraph based on runtime state values (`approved: bool`, `iteration >= MAX_REVIEW_ROUNDS`).
-- **Loop Guardrails**: Protecting against infinite loops using `MAX_REVIEW_ROUNDS` (default `2`).
-- **Reviewer Agent**: Inspecting generated code on disk, running validation heuristics, and returning structured verdicts (`ReviewVerdict`).
-- **Project Finalization**: Handing off verified deliverables to `manager_final` for the executive summary.
+- **Server-Sent Events (`StreamingResponse`)**: Streaming LangGraph events live from the Python backend to the frontend over HTTP using SSE format (`data: {json}\n\n`).
+- **Zustand State Reduction**: Transforming raw graph lifecycle events (`agent_status`, `handoff`, `file_written`, `review_verdict`) into reactive UI state.
+- **Custom Constellation & Particle Animations**: Visualizing agent collaboration, parallel fan-out, and the review loop.
+- **Electron Integration**: Desktop application container with native window controls and file system access.
 
 ---
 
-## Architecture in This Stage
+## Architecture
 ```
-                   ┌─> [ Researcher ] ─┐
-START ──> [ Manager ]                  ├─> [ Developer ] <───┐ (changes requested)
-                   └─> [  Planner   ] ─┘          │          │
-                                                  ▼          │
-                                            [ Reviewer ] ────┘
-                                                  │ (approved OR max rounds)
-                                                  ▼
-                                          [ Manager Final ] ──> END
+┌────────────────────────────────────────────────────────┐
+│                   Electron Desktop App                 │
+│   (Constellation, Avatars, Particles, Code Viewer)     │
+└───────────────────────────▲────────────────────────────┘
+                            │ SSE Stream (POST /api/run)
+┌───────────────────────────┴────────────────────────────┐
+│                    FastAPI Backend                     │
+│                (app/main.py: /api/run)                 │
+└───────────────────────────▲────────────────────────────┘
+                            │ graph.stream(stream_mode="custom")
+┌───────────────────────────┴────────────────────────────┐
+│                  5-Agent LangGraph System              │
+│       Manager ➔ [Researcher | Planner] ➔ Developer     │
+│                 Reviewer ↺ Developer ➔ Manager Final   │
+└────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## How to Test
+## How to Run
 
-Run the CLI runner from your terminal:
+### 1. Start the Backend API
+In your first terminal:
 ```bash
-python backend/cli.py "Build a pomodoro timer web page"
+cd backend
+python -m uvicorn app.main:app --reload --port 8000
+```
+Verify the backend is healthy:
+```bash
+curl http://localhost:8000/api/health
+```
+*(Should return `{"status": "ok", "mock_llm": false, "provider": "groq", ...}`)*
+
+---
+
+### 2. Launch the Electron Desktop App
+In your second terminal:
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-### Expected Output:
-```
-18:52:15 🚀 RUN STARTED — ID: run_20261014_185215_4a1f
-       Prompt: Build a pomodoro timer web page
-
-18:52:15 [ MANAGER  ] ⚡ Started work
-...
-18:52:25 [DEVELOPER ] 📝 Wrote index.html (1449 bytes)
-18:52:25 [DEVELOPER ] 📝 Wrote styles.css (2253 bytes)
-18:52:25 [DEVELOPER ] 📝 Wrote app.js (5702 bytes)
-18:52:25 ➔ developer passed 'Code for review' to reviewer
-18:52:25 [DEVELOPER ] ✓ Done — Developer completed task.
-18:52:25 [ REVIEWER ] ⚡ Started work
-18:52:25 [ REVIEWER ] ⋯ Evaluating code completeness & quality...
-18:52:28 [ REVIEWER ] ⚖ Verdict (Round 1): APPROVED ✓
-18:52:28 ➔ reviewer passed 'Approval verdict' to manager
-18:52:28 [ REVIEWER ] ✓ Done — Review complete: approved
-18:52:28 [ MANAGER  ] ⚡ Started work
-18:52:28 [ MANAGER  ] ⋯ Finalizing project delivery...
-18:52:31 [ MANAGER  ] ✓ Done — Final delivery ready
-
-🏁 RUN COMPLETED
-       Deliverables (3 files):
-       • index.html
-       • styles.css
-       • app.js
-```
-
-All 5 agents are now collaborating in a resilient cyclical multi-agent graph!
-
-Proceed to **Stage 6** to connect this graph to the FastAPI SSE server and launch the desktop Electron UI.
+Type a prompt into the floating bar (e.g., *"Build a pomodoro timer web page"*), hit **Enter**, and watch the Tensor Bots crew collaborate in real-time!
