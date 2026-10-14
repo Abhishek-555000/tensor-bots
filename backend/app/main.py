@@ -32,7 +32,6 @@ if str(BASE_DIR) not in sys.path:
 
 from app.config import (
     MOCK_LLM,
-    GEMINI_MODEL,
     LLM_PROVIDER,
     GROQ_MODEL,
     WORKSPACE_DIR,
@@ -55,8 +54,8 @@ def _cache_key(prompt: str) -> str:
         "version": _RUN_CACHE_VERSION,
         "prompt": prompt,
         "mock": MOCK_LLM,
-        "provider": LLM_PROVIDER,
-        "model": GROQ_MODEL if LLM_PROVIDER == "groq" else GEMINI_MODEL,
+        "provider": "groq",
+        "model": GROQ_MODEL,
     }
     encoded_identity = json.dumps(cache_identity, sort_keys=True).encode("utf-8")
     return hashlib.sha256(encoded_identity).hexdigest()
@@ -148,12 +147,11 @@ class RunRequest(BaseModel):
 @app.get("/api/health")
 def health():
     """Health check endpoint indicating model provider and mock status."""
-    active_model = GROQ_MODEL if LLM_PROVIDER == "groq" else GEMINI_MODEL
     return {
         "ok": True,
         "mock": MOCK_LLM,
-        "model": active_model,
-        "provider": LLM_PROVIDER,
+        "model": GROQ_MODEL,
+        "provider": "groq",
     }
 
 

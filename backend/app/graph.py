@@ -45,9 +45,8 @@ def build_graph():
     workflow.add_edge("manager", "researcher")
     workflow.add_edge("manager", "planner")
     
-    # 4. Join: Developer node waits until BOTH Researcher and Planner have finished
-    workflow.add_edge("researcher", "developer")
-    workflow.add_edge("planner", "developer")
+    # 4. Fan-In / Join: Developer node waits until BOTH Researcher and Planner have finished
+    workflow.add_edge(["researcher", "planner"], "developer")
     
     # 5. Developer hands off to Reviewer
     workflow.add_edge("developer", "reviewer")

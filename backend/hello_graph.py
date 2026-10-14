@@ -1,3 +1,10 @@
+"""
+Tensor Bots - Stage 0: Minimal Standalone LangGraph Verification.
+
+# TEACH: Demonstrates compiling a minimal 1-node graph connected to Groq Cloud LLM
+# to verify environment configuration, dependencies, and credentials.
+"""
+
 import os
 import sys
 from pathlib import Path
@@ -12,7 +19,7 @@ load_dotenv(".env")
 load_dotenv("../.env")
 
 from langgraph.graph import StateGraph, START, END
-from app.config import MOCK_LLM, GEMINI_MODEL, GOOGLE_API_KEY
+from app.config import MOCK_LLM, GROQ_MODEL, GROQ_API_KEY
 from app.llm import get_llm, extract_text
 
 
@@ -22,7 +29,7 @@ class HelloState(TypedDict):
 
 
 def greet_node(state: HelloState) -> dict:
-    """A single node that invokes the LLM to verify connectivity."""
+    """A single node that invokes the Groq LLM to verify connectivity."""
     prompt = state.get("prompt", "Say hello in one enthusiastic sentence!")
     print(f"[*] Node executing with prompt: '{prompt}'...")
     
@@ -38,10 +45,10 @@ def greet_node(state: HelloState) -> dict:
 
 def main():
     print("=" * 60)
-    print("Tensor Bots - Stage 0: Hello Graph")
+    print("Tensor Bots - Stage 0: Hello Graph (Groq)")
     print("=" * 60)
-    print(f"Provider Key Set : {'Yes' if GOOGLE_API_KEY else 'No'}")
-    print(f"Model Configured : {GEMINI_MODEL}")
+    print(f"Groq Key Set     : {'Yes' if GROQ_API_KEY else 'No'}")
+    print(f"Model Configured : {GROQ_MODEL}")
     print(f"Mock Mode Active : {MOCK_LLM}")
     print("-" * 60)
     

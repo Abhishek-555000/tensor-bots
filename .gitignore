@@ -17,6 +17,7 @@ backend/.env
 # Node & Frontend
 node_modules/
 frontend/node_modules/
+dist/
 frontend/dist/
 frontend/dist-electron/
 frontend/release/

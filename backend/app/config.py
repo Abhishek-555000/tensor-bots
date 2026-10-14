@@ -1,3 +1,9 @@
+"""
+Tensor Bots - Configuration and Environment Settings.
+
+# TEACH: Manages LLM credentials (Groq), models, timeouts, and sandboxed paths.
+"""
+
 import os
 from pathlib import Path
 from dotenv import load_dotenv
@@ -6,8 +12,8 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 
-# Load environment variables: root .env takes precedence for user secrets
-load_dotenv(dotenv_path=PROJECT_ROOT / ".env", override=True)
+# Load environment variables: shell environment takes precedence, then .env files
+load_dotenv(dotenv_path=PROJECT_ROOT / ".env", override=False)
 load_dotenv(dotenv_path=BASE_DIR / ".env", override=False)
 
 
@@ -21,32 +27,10 @@ def _clean_key(val: str | None) -> str:
     return v
 
 
-# Gemini API configuration
-GOOGLE_API_KEY = _clean_key(os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY"))
-GEMINI_API_KEY = GOOGLE_API_KEY
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash").strip()
-
 # Groq Cloud configuration
 GROQ_API_KEY = _clean_key(os.getenv("GROQ_API_KEY"))
-raw_groq_model = os.getenv("GROQ_MODEL", "").strip()
-# Use openai/gpt-oss-120b by default for high token limits, tool calling & complete generation
-if not raw_groq_model or raw_groq_model in ("llama-3.3-70b-versatile", "qwen/qwen3.8-27b"):
-    GROQ_MODEL = "openai/gpt-oss-120b"
-else:
-    GROQ_MODEL = raw_groq_model
-
-# LLM Provider Selection: automatically route to provider with active key
-env_provider = os.getenv("LLM_PROVIDER", "").lower().strip()
-if env_provider == "groq" and GROQ_API_KEY:
-    LLM_PROVIDER = "groq"
-elif env_provider == "gemini" and GOOGLE_API_KEY:
-    LLM_PROVIDER = "gemini"
-elif GROQ_API_KEY:
-    LLM_PROVIDER = "groq"
-elif GOOGLE_API_KEY:
-    LLM_PROVIDER = "gemini"
-else:
-    LLM_PROVIDER = "gemini"
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b").strip()
+LLM_PROVIDER = "groq"
 
 # Safety net: Mock mode for offline demonstrations without API keys or internet
 raw_mock = os.getenv("MOCK_LLM", "").lower().strip()
@@ -55,9 +39,11 @@ if raw_mock in ("1", "true", "yes"):
 elif raw_mock in ("0", "false", "no"):
     MOCK_LLM = False
 else:
-    # If no valid keys exist, automatically engage mock mode
-    has_valid_key = bool(GOOGLE_API_KEY or GROQ_API_KEY)
+    # If no valid Groq key exists, automatically engage mock mode
+    has_valid_key = bool(GROQ_API_KEY)
     MOCK_LLM = not has_valid_key
+    if MOCK_LLM:
+        print("[WARN] No Groq API key found, running in MOCK mode")
 
 # Loop guardrails: review rounds cap
 _raw_rounds = os.getenv("MAX_REVIEW_ROUNDS") or os.getenv("MAX_REVISION_ROUNDS") or "2"

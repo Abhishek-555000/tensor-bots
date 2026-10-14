@@ -1,19 +1,23 @@
+"""
+Tensor Bots - Groq LLM Factory and Invocation Pipeline.
+
+# TEACH: Connects agents to Groq Cloud LLMs with automatic retry,
+# fallback pooling, and deterministic offline mock simulation.
+"""
+
 import time
 import logging
 from typing import Any, List, Optional
 from app.config import (
-    LLM_PROVIDER,
-    GOOGLE_API_KEY,
-    GEMINI_MODEL,
     GROQ_API_KEY,
     GROQ_MODEL,
     MOCK_LLM,
     REQUEST_TIMEOUT_SECONDS,
 )
 from app.events import emit
+from app.mock import mock_response
 
-# Cascade of resilient models with independent quota pools
-GEMINI_FALLBACK_POOL = ["gemini-2.5-flash", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.7-flash"]
+# Groq fallback pool of resilient models
 GROQ_FALLBACK_POOL = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
 logger = logging.getLogger(__name__)
 
@@ -41,46 +45,32 @@ def extract_text(content: Any) -> str:
 
 def get_llm(model_name: Optional[str] = None):
     """
-    Factory function returning the configured ChatModel.
+    Factory function returning the configured Groq ChatModel.
     Returns None if MOCK_LLM is enabled.
     """
     if MOCK_LLM:
         return None
 
-    if LLM_PROVIDER == "groq" and GROQ_API_KEY:
-        from langchain_groq import ChatGroq
-        target_model = model_name or GROQ_MODEL
-        return ChatGroq(
-            model=target_model,
-            api_key=GROQ_API_KEY,
-            temperature=0.2,
-            max_tokens=8192,
-            request_timeout=REQUEST_TIMEOUT_SECONDS,
-        )
-
-    # Default provider: Google Gemini
-    from langchain_google_genai import ChatGoogleGenerativeAI
-    target_model = model_name or GEMINI_MODEL
-    return ChatGoogleGenerativeAI(
+    from langchain_groq import ChatGroq
+    target_model = model_name or GROQ_MODEL
+    return ChatGroq(
         model=target_model,
-        google_api_key=GOOGLE_API_KEY,
+        api_key=GROQ_API_KEY,
         temperature=0.2,
-        max_output_tokens=8192,
-        timeout=REQUEST_TIMEOUT_SECONDS,
+        max_tokens=8192,
+        request_timeout=REQUEST_TIMEOUT_SECONDS,
     )
 
 
 def get_structured_llm(schema: Any, model_name: Optional[str] = None):
     """
-    Factory creating a structured-output ChatModel.
-    On Groq, explicitly uses method='json_schema' to avoid 'tool choice is required' errors.
+    Factory creating a structured-output ChatModel via Groq.
+    Explicitly uses method='json_schema' to ensure clean schema compliance.
     """
     if MOCK_LLM:
         return None
     llm = get_llm(model_name=model_name)
-    if LLM_PROVIDER == "groq":
-        return llm.with_structured_output(schema, method="json_schema")
-    return llm.with_structured_output(schema)
+    return llm.with_structured_output(schema, method="json_schema")
 
 
 def invoke_with_retry(
@@ -92,12 +82,15 @@ def invoke_with_retry(
     tools: Optional[list[Any]] = None,
 ) -> Any:
     """
-    Invokes an LLM model with automatic retry and intelligent fallback across the model pool
+    Invokes a Groq model with automatic retry and intelligent fallback across the model pool
     if a model's quota is exhausted, rate limited, or unavailable.
     """
+    if MOCK_LLM:
+        return mock_response(agent_name=agent_name, schema=schema, prompt=prompt)
+
     last_err: Exception | None = None
-    fallback_pool = GROQ_FALLBACK_POOL if LLM_PROVIDER == "groq" else GEMINI_FALLBACK_POOL
-    primary_model = GROQ_MODEL if LLM_PROVIDER == "groq" else GEMINI_MODEL
+    fallback_pool = GROQ_FALLBACK_POOL
+    primary_model = GROQ_MODEL
     fallback_attempted = False
     
     # Try with primary model
