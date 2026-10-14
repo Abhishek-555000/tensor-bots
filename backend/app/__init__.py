@@ -1,3 +1,0 @@
-"""
-Tensor Bots application package.
-"""
