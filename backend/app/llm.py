@@ -54,7 +54,7 @@ def get_llm(model_name: Optional[str] = None):
             model=target_model,
             api_key=GROQ_API_KEY,
             temperature=0.2,
-            max_tokens=4096,
+            max_tokens=8192,
             request_timeout=REQUEST_TIMEOUT_SECONDS,
         )
 
@@ -65,7 +65,7 @@ def get_llm(model_name: Optional[str] = None):
         model=target_model,
         google_api_key=GOOGLE_API_KEY,
         temperature=0.2,
-        max_output_tokens=4096,
+        max_output_tokens=8192,
         timeout=REQUEST_TIMEOUT_SECONDS,
     )
 

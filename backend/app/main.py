@@ -427,35 +427,6 @@ def preview_root(run_id: str):
         # 1. Root index.html
         index_file = run_dir / "index.html"
         if index_file.exists() and index_file.is_file():
-            content = index_file.read_text(encoding="utf-8", errors="ignore")
-            from app.agents.developer import is_html_broken, _generate_template_for_prompt
-            if is_html_broken(content):
-                # Detect prompt intent or keywords from file or run_id
-                prompt_hint = run_id
-                c_low = content.lower()
-                if any(k in c_low or k in run_id.lower() for k in ("candy", "crush", "match", "puzzle")):
-                    prompt_hint = "candy crush"
-                elif any(k in c_low or k in run_id.lower() for k in ("snake", "cyber snake")):
-                    prompt_hint = "snake game"
-                elif any(k in c_low or k in run_id.lower() for k in ("calc", "calculator")):
-                    prompt_hint = "calculator"
-                elif any(k in c_low or k in run_id.lower() for k in ("tic", "tac", "toe")):
-                    prompt_hint = "tic tac toe"
-                elif any(k in c_low or k in run_id.lower() for k in ("todo", "task", "note")):
-                    prompt_hint = "todo app"
-                
-                template = _generate_template_for_prompt(prompt_hint)
-                try:
-                    index_file.write_text(template["html"], encoding="utf-8")
-                    css_file = run_dir / "styles.css"
-                    if not css_file.exists() or len(css_file.read_text(encoding="utf-8", errors="ignore")) < 50:
-                        css_file.write_text(template["css"], encoding="utf-8")
-                    js_file = run_dir / "app.js"
-                    if not js_file.exists() or len(js_file.read_text(encoding="utf-8", errors="ignore")) < 50:
-                        js_file.write_text(template["js"], encoding="utf-8")
-                except Exception:
-                    pass
-                return HTMLResponse(template["html"])
             return FileResponse(index_file, media_type="text/html")
 
         # 2. Nested index.html
@@ -497,13 +468,6 @@ def preview_file(run_id: str, file_path: str):
 
         target = _safe_resolve(run_dir, file_path)
         if not target.exists():
-            # Graceful asset fallback: ensure 0 broken links or unstyled pages
-            if file_path.endswith(".css"):
-                from app.agents.developer import _synthesize_modern_css
-                return PlainTextResponse(_synthesize_modern_css(run_id), media_type="text/css")
-            elif file_path.endswith(".js"):
-                from app.agents.developer import _synthesize_interactive_js
-                return PlainTextResponse(_synthesize_interactive_js("", run_id), media_type="application/javascript")
             raise HTTPException(status_code=404, detail=f"File '{file_path}' not found")
 
         if target.is_dir():
@@ -511,21 +475,19 @@ def preview_file(run_id: str, file_path: str):
                 return FileResponse(target / "index.html", media_type="text/html")
             raise HTTPException(status_code=400, detail="Cannot serve directory without index.html")
 
-        # Resolve accurate media type and validate content completeness
+        media_type, _ = mimetypes.guess_type(target.name)
         if target.suffix == ".css":
-            try:
-                css_text = target.read_text(encoding="utf-8", errors="ignore")
-                from app.agents.developer import is_css_broken, _synthesize_modern_css
-                if is_css_broken(css_text):
-                    synthesized = _synthesize_modern_css(run_id)
-                    try:
-                        target.write_text(synthesized, encoding="utf-8")
-                    except Exception:
-                        pass
-                    return PlainTextResponse(synthesized, media_type="text/css")
-            except Exception:
-                pass
-            return FileResponse(target, media_type="text/css")
+            media_type = "text/css"
+        elif target.suffix == ".js":
+            media_type = "application/javascript"
+        elif target.suffix == ".html":
+            media_type = "text/html"
+        elif target.suffix == ".json":
+            media_type = "application/json"
+        elif target.suffix == ".svg":
+            media_type = "image/svg+xml"
+
+        return FileResponse(target, media_type=media_type)
 
         media_type, _ = mimetypes.guess_type(target.name)
         if target.suffix == ".js":
