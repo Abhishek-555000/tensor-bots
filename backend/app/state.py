@@ -23,10 +23,12 @@ class TensorState(TypedDict, total=False):
     The shared state dictionary for Tensor Bots.
     
     # TEACH: total=False allows nodes to return only the subset of keys they modify.
+    # When researcher and planner execute concurrently, their returned keys do not clash.
     """
     run_id: str
     user_prompt: str
     briefs: Dict[str, str]       # Serialized AgentBriefs
     research: str                # Markdown output from Researcher
+    plan: str                    # Markdown plan & file breakdown from Planner
     files: List[str]             # List of files created
     iteration: int               # Cycle counter
