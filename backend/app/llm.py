@@ -18,7 +18,7 @@ from app.events import emit
 from app.mock import mock_response
 
 # Groq fallback pool of resilient models
-GROQ_FALLBACK_POOL = ["openai/gpt-oss-120b", "openai/gpt-oss-20b", "qwen/qwen3.8-27b"]
+GROQ_FALLBACK_POOL = ["openai/gpt-oss-120b"]
 logger = logging.getLogger(__name__)
 
 
